@@ -13,7 +13,8 @@ function commentHTML(c, p) {
   const pending = c.status === 'pending';
   return '<div class="cmt" data-cid="' + c.id + '">' + av(a, 32, true) + '<div class="bubble">' +
     '<div class="n"><a class="name-link" href="#/u/' + esc(a.handle) + '">' + esc(a.display_name) + '</a>' + (a.verified ? I.tick : '') +
-      ((mine || ownsPost) ? '<button class="del" data-cdel="' + c.id + '" data-cpost="' + p.id + '">Delete</button>' : '') + '</div>' +
+      ((mine || ownsPost) ? '<button class="del" data-cdel="' + c.id + '" data-cpost="' + p.id + '">Delete</button>' : '') +
+      (!mine ? '<button class="del" data-creport="' + c.id + '"' + (ownsPost ? ' style="margin-left:8px"' : '') + '>Report</button>' : '') + '</div>' +
     '<div class="t">' + esc(commentTag(a)) + ' · ' + timeAgo(c.created_at) + '</div><p>' + esc(c.body) + '</p>' +
     (pending ? (ownsPost
       ? '<div class="pending">Waiting for your approval</div><div class="acts2"><button data-capprove="' + c.id + '" data-cpost="' + p.id + '">Approve</button><button class="rm" data-creject="' + c.id + '" data-cpost="' + p.id + '">Remove</button></div>'

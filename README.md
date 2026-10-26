@@ -18,6 +18,7 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
 - **Interactions:** likes, comments, follows, saves, sharing, registering for trials, and clubs confirming spots.
 - **Alerts:** likes, comments, follows, registrations, comments waiting for approval and club requests, with inline Approve and Confirm buttons.
 - **Search:** people, clubs and #hashtags.
+- **Blocking:** block anyone from a post, comment or profile. Both sides stop seeing each other's posts and comments, follows between them are removed, and neither can like, comment or follow. Unblock from the profile or from Settings. App Store guideline 1.2 requires this.
 - **Safety and admin:** reports on posts and profiles. The admin page shows open reports, clubs waiting on verification and a form for verified combine stats.
 - **Privacy:** nothing is readable while signed out. Clips sit in a private bucket and are shown through signed URLs.
 

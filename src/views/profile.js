@@ -4,7 +4,7 @@ import * as api from '../api.js';
 import { I, esc, fmt, av, badges, subHTML, emptyCard, toast, KIND_LABEL, spinner, openMenu, openModal, busy, errMsg } from '../ui.js';
 import { followBtn, tileHTML, managerLine } from '../posts.js';
 import { mountPostList } from './list.js';
-import { reportDialog, profileLink } from '../actions.js';
+import { reportDialog, profileLink, blockFlow } from '../actions.js';
 import { CLUB_ROLES } from './onboarding.js';
 
 export default async function profileView(main, handle, tab) {
@@ -16,6 +16,7 @@ export default async function profileView(main, handle, tab) {
     return;
   }
   const mine = S.profiles.some((x) => x.id === p.id);
+  const blocked = S.blocked.has(p.id);
   if (!mine) api.recordProfileView(p.id).then(() => {});
   const player = p.kind === 'player' || p.kind === 'rising_star';
   tab = tab === 'highlights' || tab === 'stats' ? tab : 'posts';
@@ -36,7 +37,7 @@ export default async function profileView(main, handle, tab) {
     '<div class="pp-body">' +
       '<div class="pp-acts">' + (mine
         ? '<a class="btn btn-g btn-sm" href="#/settings">' + I.edit + 'Edit profile</a>'
-        : followBtn(p).replace('class="follow', 'class="btn btn-o btn-sm follow')) +
+        : (blocked ? '' : followBtn(p).replace('class="follow', 'class="btn btn-o btn-sm follow'))) +
         '<button class="iconbtn" data-pmore aria-label="More">' + I.more + '</button></div>' +
       av(p, 110).replace('class="av', 'class="av pp-av') +
       '<div class="pp-name">' + esc(p.display_name) + badges(p) + '</div>' +
@@ -48,6 +49,7 @@ export default async function profileView(main, handle, tab) {
       (p.bio ? '<div class="pp-bio">' + esc(p.bio) + '</div>' : (mine ? '<div class="pp-bio muted">Add a bio in <a class="linkbtn" href="#/settings">Edit profile</a> so selectors know what you\'re about.</div>' : '')) +
       '<div class="pp-stats">' + statsRow.map((s, i) => '<div><b' + (i === 0 ? ' data-fcount' : '') + '>' + s[0] + '</b><span>' + s[1] + '</span></div>').join('') + '</div>' +
     '</div>' +
+    (blocked ? '<div class="claim-card">' + I.shield + '<div><b>You\'ve blocked ' + esc(p.display_name) + '</b>You won\'t see each other\'s posts or comments.</div><button class="btn btn-g btn-sm" data-unblock>Unblock</button></div>' : '') +
     (p.kind === 'club' && !p.owner_id ? '<div class="claim-card">' + I.shield + '<div><b>' + esc(p.display_name) + ' hasn\'t joined On the Burst yet</b>We set up this page so players can link their club. It isn\'t run by the club.</div>' +
       (S.claim && S.claim.status === 'pending' ? '<span class="badge-c pend">Claim pending</span>' : '<button class="btn btn-t btn-sm" data-claimpage>Claim this page</button>') + '</div>' : '') +
     '<div class="tabs" role="tablist"><button data-tab="posts">Posts</button>' + (player || sum.highlights ? '<button data-tab="highlights">Highlights</button>' : '') + (player ? '<button data-tab="stats">Verified stats</button>' : '') + '</div>' +
@@ -65,7 +67,8 @@ export default async function profileView(main, handle, tab) {
   main.querySelector('[data-pmore]').onclick = (e) => {
     {
       let html = '<button data-act="copy">' + I.link + 'Copy profile link</button>';
-      if (!mine) html += '<button data-act="report">' + I.flag + 'Report profile</button>';
+      if (!mine) html += '<button data-act="report">' + I.flag + 'Report profile</button>' +
+        (p.owner_id ? '<button data-act="block" class="danger">' + I.x.replace('width="18" height="18"', 'width="16" height="16"') + (blocked ? 'Unblock' : 'Block') + ' ' + esc(p.display_name.split(' ')[0]) + '</button>' : '');
       if (S.isAdmin) {
         html += '<hr><button data-act="verify">' + I.admin + (p.verified ? 'Remove verified badge' : 'Verify profile') + '</button>';
         if (p.kind === 'club') html += '<button data-act="partner">' + I.check + (p.partnered ? 'Mark as not partnered' : 'Mark as partnered') + '</button>';
@@ -73,12 +76,20 @@ export default async function profileView(main, handle, tab) {
       openMenu(e.currentTarget, html, async (act) => {
         if (act === 'copy') navigator.clipboard.writeText(profileLink(p.handle)).then(() => toast('Link copied'));
         if (act === 'report') reportDialog({ profile_id: p.id }, KIND_LABEL[p.kind].toLowerCase());
+        if (act === 'block') { if (blocked) await unblock(); else if (await blockFlow(p)) rerender(); }
         if (act === 'verify') { await api.setVerified(p.id, !p.verified); toast(p.verified ? 'Badge removed' : 'Verified'); setTimeout(() => location.reload(), 600); }
         if (act === 'partner') { await api.setPartnered(p.id, !p.partnered); toast(p.partnered ? 'Marked as not partnered' : 'Marked as partnered'); setTimeout(() => location.reload(), 600); }
       });
     }
   };
 
+  // Re-run the router so this page's listeners are cleaned up properly.
+  const rerender = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
+  async function unblock() {
+    try { await api.unblockProfile(p.id); S.blocked.delete(p.id); toast(p.display_name + ' is unblocked'); rerender(); } catch (ex) { toast(errMsg(ex)); }
+  }
+  const ub = main.querySelector('[data-unblock]');
+  if (ub) ub.onclick = unblock;
   const claimBtn = main.querySelector('[data-claimpage]');
   if (claimBtn) claimBtn.onclick = () => {
     const m = openModal({
@@ -111,7 +122,7 @@ export default async function profileView(main, handle, tab) {
       tabEl.innerHTML = '<div class="feed" data-viewlist></div>';
       list = mountPostList(tabEl.firstChild, {
         load: (before) => api.profilePosts(p.id, { before }),
-        empty: () => emptyCard(mine ? 'You haven\'t posted yet' : 'No posts yet', mine ? 'Share a highlight and it\'ll show up here and in the feed.' : 'When ' + p.display_name + ' posts, it\'ll show up here.', mine ? '<br><button class="btn btn-p" data-compose="clip">Post a highlight</button>' : ''),
+        empty: () => blocked ? emptyCard('Posts hidden', 'You won\'t see ' + p.display_name + '\'s posts while they\'re blocked.') : emptyCard(mine ? 'You haven\'t posted yet' : 'No posts yet', mine ? 'Share a highlight and it\'ll show up here and in the feed.' : 'When ' + p.display_name + ' posts, it\'ll show up here.', mine ? '<br><button class="btn btn-p" data-compose="clip">Post a highlight</button>' : ''),
       });
     } else if (t === 'highlights') {
       tabEl.innerHTML = '<div class="card">' + spinner() + '</div>';

@@ -8,6 +8,7 @@ export const S = {
   isAdmin: false,
   claim: null,           // latest club claim this account made
   following: new Set(),  // profile ids the acting profile follows
+  blocked: new Set(),    // profile ids this account has blocked
   posts: new Map(),      // post id -> post (with author, liked, saved, reg)
   unread: 0,
   muted: true,

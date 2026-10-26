@@ -119,6 +119,25 @@ async function deletePost(p) {
   } catch (e) { toast(errMsg(e)); }
 }
 
+// Block a profile: hide everything of theirs that's on screen.
+export async function blockFlow(profile) {
+  const ok = await confirmDialog({
+    title: 'Block ' + profile.display_name + '?',
+    text: 'You won\'t see each other\'s posts or comments, and they can\'t follow you, like or comment on your posts. They aren\'t told. You can unblock them from their profile or Settings.',
+    ok: 'Block', danger: true,
+  });
+  if (!ok) return false;
+  try {
+    await api.blockProfile(profile.id);
+    S.blocked.add(profile.id);
+    S.following.delete(profile.id);
+    $$('.post[data-author="' + profile.id + '"]').forEach((el) => el.remove());
+    S.posts.forEach((p, pid) => { if (p.author_id === profile.id) removePostEverywhere(pid); });
+    toast(profile.display_name + ' is blocked');
+    return true;
+  } catch (e) { toast(errMsg(e)); return false; }
+}
+
 function postMenu(btn, id) {
   const p = S.posts.get(id);
   if (!p) return;
@@ -126,7 +145,8 @@ function postMenu(btn, id) {
   let html = '<button data-act="copy">' + I.link + 'Copy link</button>';
   if (mine) html += '<button data-act="edit">' + I.edit + 'Edit caption</button><hr><button data-act="delete" class="danger">' + I.trash + 'Delete post</button>';
   else {
-    html += '<button data-act="report">' + I.flag + 'Report post</button>';
+    html += '<button data-act="report">' + I.flag + 'Report post</button>' +
+      '<button data-act="block" class="danger">' + I.x.replace('width="18" height="18"', 'width="16" height="16"') + 'Block ' + esc(firstName(p.author.display_name)) + '</button>';
     if (S.isAdmin) html += '<hr><button data-act="delete" class="danger">' + I.trash + 'Remove post (admin)</button>';
   }
   openMenu(btn, html, (act) => {
@@ -134,6 +154,7 @@ function postMenu(btn, id) {
     if (act === 'edit') editCaption(p);
     if (act === 'delete') deletePost(p);
     if (act === 'report') reportDialog({ post_id: id }, 'post');
+    if (act === 'block') blockFlow(p.author);
   });
 }
 
@@ -187,6 +208,7 @@ document.addEventListener('click', (e) => {
   if ((t = e.target.closest('[data-regs]'))) { showRegistrations(t.dataset.regs); return; }
   if ((t = e.target.closest('[data-more]'))) { postMenu(t, t.dataset.more); return; }
   if ((t = e.target.closest('[data-cdel]'))) { confirmDialog({ title: 'Delete comment?', text: 'This can\'t be undone.', ok: 'Delete', danger: true }).then((y) => y && cm.remove(t.dataset.cdel, t.dataset.cpost)); return; }
+  if ((t = e.target.closest('[data-creport]'))) { reportDialog({ comment_id: t.dataset.creport }, 'comment'); return; }
   if ((t = e.target.closest('[data-capprove]'))) { cm.moderate(t.dataset.capprove, t.dataset.cpost, true); return; }
   if ((t = e.target.closest('[data-creject]'))) { cm.moderate(t.dataset.creject, t.dataset.cpost, false); return; }
   if ((t = e.target.closest('[data-cmts]'))) {

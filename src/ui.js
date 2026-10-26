@@ -211,7 +211,7 @@ export function openModal({ title, body, foot, wide, onClose }) {
   bg.querySelector('[data-close]').onclick = close;
   modalStack.push(m);
   const first = bg.querySelector('input:not([type=hidden]):not([type=checkbox]),textarea,select');
-  if (first && matchMedia('(min-width:761px)').matches) setTimeout(() => first.focus(), 30);
+  if (first && matchMedia('(min-width:761px)').matches) setTimeout(() => { if (!bg.contains(document.activeElement)) first.focus(); }, 30);
   return m;
 }
 export function topModal() { return modalStack[modalStack.length - 1]; }
@@ -234,20 +234,28 @@ export function confirmDialog({ title, text, ok = 'Confirm', danger }) {
 }
 
 /* ---------- popover menu ---------- */
-let openMenuEl = null;
-export function closeMenu() { if (openMenuEl) { openMenuEl.remove(); openMenuEl = null; } }
+let openMenuEl = null, menuAnchor = null;
+export function closeMenu() { if (openMenuEl) { openMenuEl.remove(); openMenuEl = null; menuAnchor = null; } }
+function placeMenu() {
+  if (!openMenuEl) return;
+  if (!menuAnchor || !menuAnchor.isConnected) return closeMenu();
+  const el = openMenuEl, r = menuAnchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+  if (r.bottom < 0 || r.top > innerHeight) return closeMenu();
+  const left = Math.min(Math.max(8, r.right - w), innerWidth - w - 8);
+  let top = r.bottom + 6;
+  if (top + h > innerHeight - 8) top = Math.max(8, r.top - h - 6);
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+}
 export function openMenu(anchor, html, onClick) {
   closeMenu();
   const el = document.createElement('div');
   el.className = 'menu';
   el.innerHTML = html;
   document.body.appendChild(el);
-  const r = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
-  let left = Math.min(Math.max(8, r.right - w), innerWidth - w - 8);
-  let top = r.bottom + 6;
-  if (top + h > innerHeight - 8) top = Math.max(8, r.top - h - 6);
-  el.style.left = left + 'px';
-  el.style.top = top + 'px';
+  openMenuEl = el;
+  menuAnchor = anchor;
+  placeMenu();
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
     if (!b) return;
@@ -255,12 +263,13 @@ export function openMenu(anchor, html, onClick) {
     closeMenu();
     onClick(b.dataset.act, b);
   });
-  openMenuEl = el;
   return el;
 }
 document.addEventListener('mousedown', (e) => { if (openMenuEl && !openMenuEl.contains(e.target) && !e.target.closest('[data-menu],[data-more]')) closeMenu(); });
-window.addEventListener('scroll', closeMenu, { passive: true });
-window.addEventListener('resize', closeMenu);
+// Follow the button when the page shifts (content loading above it); close
+// once it scrolls out of view.
+window.addEventListener('scroll', placeMenu, { passive: true });
+window.addEventListener('resize', placeMenu);
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));

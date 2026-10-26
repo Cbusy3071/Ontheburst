@@ -39,6 +39,7 @@ export default function settingsView(main, { refresh, switchTo }) {
         '<button class="iconbtn" data-rm-rs="' + m.id + '" aria-label="Delete profile">' + I.trash + '</button></div>').join('') : '<div class="muted small" style="padding:6px 0 4px">No Rising Star profiles yet.</div>') +
       '<div style="margin-top:12px"><button class="btn btn-p btn-sm" id="addRs">' + I.plus + 'Add a Rising Star</button></div></div>' : '') +
 
+    '<div class="card set"><h2>Blocked</h2><p>People you\'ve blocked can\'t see your posts, comment, like or follow you, and you won\'t see theirs.</p><div id="blockedList"><div class="spin"></div></div></div>' +
     '<div class="card set"><h2>Account</h2><p>Signed in as <b>' + esc(S.user.email) + '</b>.</p>' +
       '<form class="form" id="pwf"><label class="field"><span>New password</span><input class="in" type="password" id="pw1" minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label>' +
       '<div><button class="btn btn-g btn-sm" type="submit">Change password</button></div></form>' +
@@ -160,6 +161,12 @@ export default function settingsView(main, { refresh, switchTo }) {
       } catch (ex) { toast(errMsg(ex)); }
       return;
     }
+    if ((t = e.target.closest('[data-unblock-id]'))) {
+      await busy(t, async () => {
+        try { await api.unblockProfile(t.dataset.unblockId); S.blocked.delete(t.dataset.unblockId); toast('Unblocked'); loadBlocked(); } catch (ex) { toast(errMsg(ex)); }
+      });
+      return;
+    }
     if ((t = e.target.closest('[data-member]'))) {
       await busy(t, async () => {
         try { await api.respondMembership(t.dataset.member, !!t.dataset.ok); toast(t.dataset.ok ? 'Player confirmed' : 'Request declined'); loadMembers(); } catch (ex) { toast(errMsg(ex)); }
@@ -167,6 +174,17 @@ export default function settingsView(main, { refresh, switchTo }) {
     }
   };
   main.addEventListener('click', onClick);
+
+  /* ---- blocked ---- */
+  async function loadBlocked() {
+    const el = $('#blockedList');
+    try {
+      const rows = (await api.blockedProfiles()).filter((r) => r.profile);
+      el.innerHTML = rows.length ? rows.map((r) => '<div class="mp">' + av(r.profile, 40, true) + '<div class="grow"><b>' + esc(r.profile.display_name) + '</b><div class="small muted">@' + esc(r.profile.handle) + '</div></div><button class="btn btn-g btn-sm" data-unblock-id="' + r.profile.id + '">Unblock</button></div>').join('')
+        : '<div class="muted small">You haven\'t blocked anyone.</div>';
+    } catch (ex) { el.innerHTML = '<div class="err">' + esc(errMsg(ex)) + '</div>'; }
+  }
+  loadBlocked();
 
   /* ---- account ---- */
   $('#pwf').onsubmit = async (e) => {

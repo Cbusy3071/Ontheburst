@@ -76,7 +76,7 @@ function resetState() {
   started = false;
   enteredUser = null;
   if (cleanup) { try { cleanup(); } catch (_) { /* ignore */ } cleanup = null; }
-  Object.assign(S, { session: null, user: null, holder: null, profiles: [], me: null, isAdmin: false, following: new Set(), unread: 0 });
+  Object.assign(S, { session: null, user: null, holder: null, profiles: [], me: null, isAdmin: false, following: new Set(), blocked: new Set(), unread: 0, claim: null });
   S.posts.clear();
   ['#left', '#right', '#main'].forEach((s) => { $(s).innerHTML = ''; });
 }
@@ -114,7 +114,7 @@ async function startApp(actingId) {
   const want = actingId || recallActing();
   S.me = S.profiles.find((p) => p.id === want) || primary();
   rememberActing(S.me.id);
-  await api.loadFollowing().catch(() => {});
+  await Promise.all([api.loadFollowing().catch(() => {}), api.loadBlocks().catch(() => {})]);
   document.body.classList.remove('full');
   $('#full').innerHTML = '';
   started = true;

@@ -199,6 +199,17 @@ export async function pendingMembers(clubId) {
   return check(await sb.from('profiles').select(AUTHOR_COLS).eq('club_id', clubId).eq('club_status', 'pending').order('updated_at', { ascending: false }).limit(100));
 }
 
+/* ---------- blocking ---------- */
+export async function loadBlocks() {
+  const rows = check(await sb.from('blocks').select('blocked_id').limit(5000));
+  S.blocked = new Set(rows.map((r) => r.blocked_id));
+}
+export const blockProfile = (id) => sb.rpc('block_profile', { p_profile: id }).then(check);
+export const unblockProfile = (id) => sb.rpc('unblock_profile', { p_profile: id }).then(check);
+export async function blockedProfiles() {
+  return check(await sb.from('blocks').select('created_at,profile:profiles!blocks_blocked_id_fkey(' + AUTHOR_COLS + ')').order('created_at', { ascending: false }));
+}
+
 /* ---------- reports & admin ---------- */
 export const report = async (row) => check(await sb.from('reports').insert(row));
 export async function openReports() {
