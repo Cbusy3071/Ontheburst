@@ -10,7 +10,14 @@ const TYPES = {
   trial: ['Trial', I.clip], team: ['Team list', I.list], event: ['Event', I.cal],
 };
 const MILESTONES = [['New squad', 'Selected'], ['Representative', 'Picked'], ['Award', 'Winner'], ['Contract', 'Signed'], ['Debut', 'Debut'], ['Milestone', 'Milestone']];
-const STAT_PRESETS = [['s', '40m sprint'], ['cm', 'Vertical jump'], ['', 'Yo-yo IR1'], ['m', 'Broad jump']];
+const MAX_STATS = 8;
+const STAT_PRESETS = [['40m sprint', 's'], ['Vertical jump', 'cm'], ['Yo-yo IR1', 'level'], ['Broad jump', 'm']];
+const STAT_SUGGEST = [['40m sprint', 's'], ['10m sprint', 's'], ['Vertical jump', 'cm'], ['Broad jump', 'm'], ['Yo-yo IR1', 'level'], ['Beep test', 'level'],
+  ['Bench press', 'kg'], ['Squat', 'kg'], ['Deadlift', 'kg'], ['Power clean', 'kg'], ['Chin-ups', 'reps'], ['Push-ups', 'reps'],
+  ['Bronco', 'min'], ['2km time trial', 'min'], ['Height', 'cm'], ['Weight', 'kg']];
+const statRow = (l, u) => '<div class="srow"><input class="in" data-sl maxlength="24" list="statList" placeholder="Test, e.g. Bench press" value="' + esc(l || '') + '">' +
+  '<input class="in" data-sv inputmode="decimal" maxlength="8" placeholder="Result"><input class="in" data-su maxlength="6" placeholder="Unit" value="' + esc(u || '') + '">' +
+  '<button type="button" class="iconbtn" data-srm aria-label="Remove stat">' + I.x + '</button></div>';
 const TEAM_POS = ['FB', 'WG', 'CE', 'CE', 'WG', 'FE', 'HB', 'PR', 'HK', 'PR', '2R', '2R', 'LK', 'INT', 'INT', 'INT', 'INT'];
 
 export function allowedTypes(p) {
@@ -35,7 +42,9 @@ function fieldsFor(type) {
   }
   if (type === 'stats') {
     return '<div class="lbl">Your numbers</div><p class="hint-t" style="margin:-8px 0 2px">These show as self-reported until they\'re measured at a combine.</p>' +
-      STAT_PRESETS.map((s, i) => '<div class="srow"><input class="in" data-sv="' + i + '" inputmode="decimal" maxlength="8" placeholder="Value"><input class="in" data-su="' + i + '" maxlength="6" value="' + s[0] + '" placeholder="Unit"><input class="in" data-sl="' + i + '" maxlength="24" value="' + s[1] + '"><span></span></div>').join('');
+      '<div id="sRows">' + STAT_PRESETS.map((x) => statRow(x[0], x[1])).join('') + '</div>' +
+      '<datalist id="statList">' + STAT_SUGGEST.map((x) => '<option value="' + esc(x[0]) + '">').join('') + '</datalist>' +
+      '<div class="row-flex"><button type="button" class="btn btn-g btn-sm" id="sAdd">' + I.plus + 'Add a stat</button><span class="hint-t" id="sCount"></span></div>';
   }
   if (type === 'trial') {
     return '<label class="field"><span>Trial name</span><input class="in" id="tTitle" maxlength="60" placeholder="SG Ball development squad trials" required></label>' +
@@ -103,9 +112,40 @@ export function openComposer(initial) {
     gate.innerHTML = locked ? '<div class="warn">Trials and events unlock once your club is verified. We check every club before it can advertise trials to young players. We\'ll notify you when it\'s done.</div>' : '';
     $m('#cGo').disabled = locked;
     if (t === 'clip') wireClip();
+    if (t === 'stats') wireStats();
     if (t === 'milestone') {
       $m('#mKick').onchange = (e) => { $m('#mBig').value = MILESTONES[e.target.value][1]; };
     }
+  }
+
+  function wireStats() {
+    const rows = $m('#sRows'), add = $m('#sAdd'), count = $m('#sCount');
+    const sync = () => {
+      const n = rows.children.length;
+      add.disabled = n >= MAX_STATS;
+      count.textContent = n + ' of ' + MAX_STATS;
+    };
+    add.onclick = () => {
+      if (rows.children.length >= MAX_STATS) return;
+      rows.insertAdjacentHTML('beforeend', statRow('', ''));
+      rows.lastElementChild.querySelector('[data-sl]').focus();
+      sync();
+    };
+    rows.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-srm]');
+      if (!b) return;
+      b.closest('.srow').remove();
+      if (!rows.children.length) rows.insertAdjacentHTML('beforeend', statRow('', ''));
+      sync();
+    });
+    // Picking a known test fills in its usual unit.
+    rows.addEventListener('change', (e) => {
+      if (!e.target.matches('[data-sl]')) return;
+      const unit = e.target.parentElement.querySelector('[data-su]');
+      const hit = STAT_SUGGEST.find((x) => x[0].toLowerCase() === e.target.value.trim().toLowerCase());
+      if (hit && !unit.value) unit.value = hit[1];
+    });
+    sync();
   }
 
   function wireClip() {
@@ -156,8 +196,12 @@ export function openComposer(initial) {
       if (!row.data.line) throw new Error('Say what the milestone is for.');
     }
     if (type === 'stats') {
-      row.data.items = STAT_PRESETS.map((_, i) => ({ v: v('[data-sv="' + i + '"]'), u: v('[data-su="' + i + '"]'), l: v('[data-sl="' + i + '"]') })).filter((x) => x.v);
-      if (!row.data.items.length) throw new Error('Add at least one number.');
+      const items = Array.from(m.el.querySelectorAll('#sRows .srow')).map((r) => ({
+        l: r.querySelector('[data-sl]').value.trim(), v: r.querySelector('[data-sv]').value.trim(), u: r.querySelector('[data-su]').value.trim(),
+      })).filter((x) => x.v);
+      if (items.some((x) => !x.l)) throw new Error('Give each stat a name, like Bench press.');
+      if (!items.length) throw new Error('Add at least one result.');
+      row.data.items = items.slice(0, MAX_STATS);
     }
     if (type === 'trial') {
       row.data = { title: v('#tTitle'), time: v('#tTime'), location: v('#tLoc'), eligibility: v('#tElig'), kicker: v('#tKick') || 'Open to all clubs' };

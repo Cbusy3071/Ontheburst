@@ -62,7 +62,7 @@ export function mediaBlock(p) {
       '<div class="s">' + esc(d.line || '') + (d.small ? '<small>' + esc(d.small) + '</small>' : '') + '</div><span class="badge">' + I.trophy + '</span></div>';
   }
   if (p.kind === 'stats') {
-    const st = (d.items || []).filter((x) => x && x.v !== '' && x.v != null).slice(0, 4);
+    const st = (d.items || []).filter((x) => x && x.v !== '' && x.v != null).slice(0, 8);
     return '<div class="stats">' + st.map((x) => '<div class="stat"><b>' + esc(x.v) + '<small>' + esc(x.u || '') + '</small></b><span>' + esc(x.l || '') + '</span><em>Self-reported</em></div>').join('') + '</div>' +
       (own(p) ? '<div class="verify">' + I.shield.replace('width="15" height="15"', 'width="16" height="16"') + '<span style="flex:1">Get these verified at a combine</span><a class="linkbtn" href="#/events">Find an event</a></div>' : '');
   }

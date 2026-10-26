@@ -495,7 +495,7 @@ select.in{appearance:none;-webkit-appearance:none;background-image:url("data:ima
 .pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--burst),var(--burst2));transition:width .2s}
 .trow{display:grid;grid-template-columns:52px minmax(0,1fr) 70px;gap:6px;margin-bottom:6px}
 .trow .in{height:38px;font-size:13.5px;padding:0 10px}
-.srow{display:grid;grid-template-columns:90px 70px minmax(0,1fr) 34px;gap:6px;margin-bottom:6px}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) 84px 70px 34px;gap:6px;margin-bottom:6px;align-items:center}
 .srow .in{height:38px;font-size:13.5px;padding:0 10px}
 
 /* page headers & lists */
