@@ -5,7 +5,8 @@ import { signPosts } from './media.js';
 
 export const PROFILE_COLS = 'id,owner_id,kind,is_primary,handle,display_name,pos,club_name,club_id,club_status,manager_id,grade,jersey,region,bio,avatar_url,color,verified,follower_count,following_count,profile_views,created_at';
 export const AUTHOR_COLS = 'id,owner_id,kind,handle,display_name,pos,club_name,club_status,grade,jersey,region,avatar_url,color,verified,manager_id';
-const MANAGER = 'manager:profiles!profiles_manager_id_fkey(display_name,handle)';
+// manager() and club() are computed relationships defined in schema.sql
+const MANAGER = 'manager(display_name,handle)';
 export const POST_SEL = '*,author:profiles!posts_author_id_fkey(' + AUTHOR_COLS + ',' + MANAGER + ')';
 const COMMENT_SEL = 'id,post_id,author_id,body,status,created_at,author:profiles!comments_author_id_fkey(' + AUTHOR_COLS + ')';
 
@@ -47,7 +48,7 @@ export async function loadFollowing() {
 /* ---------- profiles ---------- */
 export async function profileByHandle(handle) {
   return check(await sb.from('profiles')
-    .select(PROFILE_COLS + ',' + MANAGER + ',club:profiles!profiles_club_id_fkey(handle,verified)')
+    .select(PROFILE_COLS + ',' + MANAGER + ',club(handle,verified)')
     .eq('handle', String(handle).toLowerCase()).maybeSingle());
 }
 export const profileSummary = (id) => sb.rpc('profile_summary', { p_profile: id }).then(check);

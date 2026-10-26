@@ -258,6 +258,19 @@ end $$;
 revoke execute on function public._notify(uuid, uuid, text, uuid, uuid) from public, anon, authenticated;
 
 
+-- Computed relationships. PostgREST doesn't embed a table into itself via a
+-- foreign key, so these let the API do profiles -> manager and profiles -> club:
+--   select=*,manager(display_name,handle),club(handle,verified)
+create or replace function public.manager(public.profiles) returns setof public.profiles
+language sql stable rows 1 set search_path = public as $$
+  select * from public.profiles where id = $1.manager_id
+$$;
+create or replace function public.club(public.profiles) returns setof public.profiles
+language sql stable rows 1 set search_path = public as $$
+  select * from public.profiles where id = $1.club_id
+$$;
+
+
 -- ---------------------------------------------------------------------
 -- Triggers
 -- ---------------------------------------------------------------------
@@ -950,3 +963,6 @@ create policy "otb avatars update" on storage.objects for update to authenticate
 drop policy if exists "otb avatars delete" on storage.objects;
 create policy "otb avatars delete" on storage.objects for delete to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Tell the API to pick up changes straight away.
+notify pgrst, 'reload schema';
