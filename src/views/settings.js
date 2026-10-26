@@ -146,7 +146,7 @@ export default function settingsView(main, { refresh, switchTo }) {
     });
   };
 
-  main.addEventListener('click', async (e) => {
+  const onClick = async (e) => {
     let t;
     if ((t = e.target.closest('[data-act-as]'))) { switchTo(t.dataset.actAs); return; }
     if ((t = e.target.closest('[data-rm-rs]'))) {
@@ -165,7 +165,8 @@ export default function settingsView(main, { refresh, switchTo }) {
         try { await api.respondMembership(t.dataset.member, !!t.dataset.ok); toast(t.dataset.ok ? 'Player confirmed' : 'Request declined'); loadMembers(); } catch (ex) { toast(errMsg(ex)); }
       });
     }
-  });
+  };
+  main.addEventListener('click', onClick);
 
   /* ---- account ---- */
   $('#pwf').onsubmit = async (e) => {
@@ -195,4 +196,5 @@ export default function settingsView(main, { refresh, switchTo }) {
       } catch (ex) { toast(errMsg(ex)); }
     }, 'Deleting...');
   };
+  return () => main.removeEventListener('click', onClick);
 }

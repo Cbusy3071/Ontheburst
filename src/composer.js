@@ -94,7 +94,10 @@ export function openComposer(initial) {
       '<div id="cGate"></div><div class="err" id="cErr" hidden></div>' +
       '<div id="cProg" hidden><div class="pbar"><i></i></div><p class="hint-t" style="margin-top:6px" id="cProgT">Uploading...</p></div></form>',
     foot: '<span class="grow">No direct messaging, by design. Keep it about the footy.</span><button class="btn btn-p" id="cGo">Post</button>',
-    onClose: () => { if (clip && clip.probe) URL.revokeObjectURL(clip.probe.url); },
+    onClose: () => {
+      m.el.querySelectorAll('video').forEach((v) => { v.pause(); v.removeAttribute('src'); v.load(); });
+      if (clip && clip.probe) { clip.probe.el.removeAttribute('src'); URL.revokeObjectURL(clip.probe.url); }
+    },
   });
   const $m = (s) => m.el.querySelector(s);
   const err = (msg) => { const e = $m('#cErr'); e.textContent = msg || ''; e.hidden = !msg; };
@@ -167,6 +170,7 @@ export function openComposer(initial) {
     try {
       const probe = await probeVideo(file);
       if (probe.duration > MAX_CLIP_SECONDS + 0.5) {
+        probe.el.removeAttribute('src');
         URL.revokeObjectURL(probe.url);
         setType('clip');
         return err('That clip is ' + duration(probe.duration) + '. Highlights can be up to a minute, so trim it and try again.');
@@ -178,7 +182,7 @@ export function openComposer(initial) {
       prev.hidden = false;
       prev.innerHTML = '<div class="cprev"><video src="' + probe.url + '" controls playsinline muted></video><button type="button" class="iconbtn x" id="cRm" aria-label="Remove clip">' + I.x + '</button></div>' +
         '<p class="hint-t" style="margin-top:6px">' + duration(probe.duration) + ' · ' + (file.size / 1048576).toFixed(1) + ' MB · ' + probe.width + '×' + probe.height + '</p>';
-      $m('#cRm').onclick = () => { URL.revokeObjectURL(probe.url); setType('clip'); };
+      $m('#cRm').onclick = () => { prev.querySelector('video').removeAttribute('src'); probe.el.removeAttribute('src'); URL.revokeObjectURL(probe.url); setType('clip'); };
     } catch (e) {
       setType('clip');
       err(errMsg(e));

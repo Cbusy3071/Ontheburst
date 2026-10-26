@@ -5,7 +5,7 @@ import { S, primary, rememberActing, recallActing } from './state.js';
 import * as api from './api.js';
 import { $, toast, errMsg, closeMenu, openModal } from './ui.js';
 import { showSignIn, showNewPassword, showSetup } from './views/auth.js';
-import { showOnboarding, showLockout, showAddChild } from './views/onboarding.js';
+import { showOnboarding, showLockout, showAddChild, showClaimPending } from './views/onboarding.js';
 import { renderLeft, renderRight, renderNav, renderPip, setActiveNav, meMenu } from './shell.js';
 import { openComposer } from './composer.js';
 import { closeViewer } from './viewer.js';
@@ -96,9 +96,11 @@ async function enter(session, force) {
     return;
   }
   if (S.holder && S.holder.locked) return showLockout();
+  if (!primary() && S.claim && S.claim.status === 'pending') return showClaimPending(S.claim);
   if (!primary()) {
     return showOnboarding(async (kind) => {
       await api.loadAccount();
+      if (kind === 'claim') return showClaimPending(S.claim || {});
       if (kind === 'parent') {
         return showAddChild(async (childId) => { await api.loadAccount(); startApp(childId); });
       }

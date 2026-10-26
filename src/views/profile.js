@@ -1,10 +1,11 @@
 // Player, club and member profile pages.
 import { S } from '../state.js';
 import * as api from '../api.js';
-import { I, esc, fmt, av, badges, subHTML, emptyCard, toast, KIND_LABEL, spinner, openMenu } from '../ui.js';
+import { I, esc, fmt, av, badges, subHTML, emptyCard, toast, KIND_LABEL, spinner, openMenu, openModal, busy, errMsg } from '../ui.js';
 import { followBtn, tileHTML, managerLine } from '../posts.js';
 import { mountPostList } from './list.js';
 import { reportDialog, profileLink } from '../actions.js';
+import { CLUB_ROLES } from './onboarding.js';
 
 export default async function profileView(main, handle, tab) {
   main.innerHTML = '<div class="card">' + spinner() + '</div>';
@@ -43,10 +44,12 @@ export default async function profileView(main, handle, tab) {
       managerLine(p) +
       '<div class="pp-meta">' + clubLine + (p.region ? '<span>' + I.pin + esc(p.region) + '</span>' : '') +
         (p.kind !== 'player' && p.kind !== 'rising_star' ? '<span>' + esc(KIND_LABEL[p.kind]) + '</span>' : '') +
-        '<span>' + I.cal + 'Joined ' + new Date(p.created_at).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' }) + '</span></div>' +
+        (p.kind === 'club' && !p.owner_id ? '' : '<span>' + I.cal + 'Joined ' + new Date(p.created_at).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' }) + '</span>') + '</div>' +
       (p.bio ? '<div class="pp-bio">' + esc(p.bio) + '</div>' : (mine ? '<div class="pp-bio muted">Add a bio in <a class="linkbtn" href="#/settings">Edit profile</a> so selectors know what you\'re about.</div>' : '')) +
       '<div class="pp-stats">' + statsRow.map((s, i) => '<div><b' + (i === 0 ? ' data-fcount' : '') + '>' + s[0] + '</b><span>' + s[1] + '</span></div>').join('') + '</div>' +
     '</div>' +
+    (p.kind === 'club' && !p.owner_id ? '<div class="claim-card">' + I.shield + '<div><b>' + esc(p.display_name) + ' hasn\'t joined On the Burst yet</b>We set up this page so players can link their club. It isn\'t run by the club.</div>' +
+      (S.claim && S.claim.status === 'pending' ? '<span class="badge-c pend">Claim pending</span>' : '<button class="btn btn-t btn-sm" data-claimpage>Claim this page</button>') + '</div>' : '') +
     '<div class="tabs" role="tablist"><button data-tab="posts">Posts</button>' + (player || sum.highlights ? '<button data-tab="highlights">Highlights</button>' : '') + (player ? '<button data-tab="stats">Verified stats</button>' : '') + '</div>' +
   '</div><div id="ptab"></div>';
 
@@ -63,13 +66,39 @@ export default async function profileView(main, handle, tab) {
     {
       let html = '<button data-act="copy">' + I.link + 'Copy profile link</button>';
       if (!mine) html += '<button data-act="report">' + I.flag + 'Report profile</button>';
-      if (S.isAdmin) html += '<hr><button data-act="verify">' + I.admin + (p.verified ? 'Remove verified badge' : 'Verify profile') + '</button>';
+      if (S.isAdmin) {
+        html += '<hr><button data-act="verify">' + I.admin + (p.verified ? 'Remove verified badge' : 'Verify profile') + '</button>';
+        if (p.kind === 'club') html += '<button data-act="partner">' + I.check + (p.partnered ? 'Mark as not partnered' : 'Mark as partnered') + '</button>';
+      }
       openMenu(e.currentTarget, html, async (act) => {
         if (act === 'copy') navigator.clipboard.writeText(profileLink(p.handle)).then(() => toast('Link copied'));
         if (act === 'report') reportDialog({ profile_id: p.id }, KIND_LABEL[p.kind].toLowerCase());
         if (act === 'verify') { await api.setVerified(p.id, !p.verified); toast(p.verified ? 'Badge removed' : 'Verified'); setTimeout(() => location.reload(), 600); }
+        if (act === 'partner') { await api.setPartnered(p.id, !p.partnered); toast(p.partnered ? 'Marked as not partnered' : 'Marked as partnered'); setTimeout(() => location.reload(), 600); }
       });
     }
+  };
+
+  const claimBtn = main.querySelector('[data-claimpage]');
+  if (claimBtn) claimBtn.onclick = () => {
+    const m = openModal({
+      title: 'Claim ' + p.display_name,
+      body: '<form class="form" id="cpf"><p class="muted small">We check every claim before handing a club page over. Once approved, you can switch to the club from the Me menu.</p>' +
+        '<label class="field"><span>Your full name</span><input class="in" id="cpName" maxlength="60" value="' + esc(S.me.display_name) + '"></label>' +
+        '<label class="field"><span>Your role at the club</span><select class="in" id="cpRole">' + CLUB_ROLES.map((r) => '<option>' + r + '</option>').join('') + '</select></label>' +
+        '<label class="field"><span>How can we confirm you?</span><textarea class="in" id="cpNote" maxlength="500" rows="3" placeholder="For example: I\'m listed as registrar on the club website"></textarea></label></form>',
+      foot: '<button class="btn btn-g" data-cancel>Cancel</button><button class="btn btn-p" data-send>Send claim</button>',
+    });
+    m.el.querySelector('[data-cancel]').onclick = m.close;
+    m.el.querySelector('[data-send]').onclick = (e) => busy(e.currentTarget, async () => {
+      try {
+        await api.claimClub({ p_club: p.id, p_name: m.el.querySelector('#cpName').value.trim(), p_role: m.el.querySelector('#cpRole').value, p_note: m.el.querySelector('#cpNote').value.trim() || null });
+        S.claim = { status: 'pending', club: p };
+        m.close();
+        toast('Claim sent. We\'ll review it soon.');
+        claimBtn.outerHTML = '<span class="badge-c pend">Claim pending</span>';
+      } catch (ex) { toast(errMsg(ex)); }
+    });
   };
 
   let list = null;

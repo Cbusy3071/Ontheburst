@@ -2,7 +2,7 @@
 // Parents then add a Rising Star profile for their child.
 import { sb } from '../supabase.js';
 import * as api from '../api.js';
-import { I, esc, errMsg, LOGO_SVG, POSITIONS, GRADES, randomColor, suggestHandle, $, todayYMD } from '../ui.js';
+import { I, esc, av, badges, subText, errMsg, LOGO_SVG, POSITIONS, GRADES, randomColor, suggestHandle, $, todayYMD } from '../ui.js';
 
 const full = () => document.getElementById('full');
 const KINDS = [
@@ -41,7 +41,76 @@ export function showOnboarding(onDone) {
     full().querySelectorAll('[data-kind]').forEach((x) => x.classList.toggle('on', x === b));
     $('#obNext').disabled = false;
   });
-  $('#obNext').onclick = () => details(kind, onDone);
+  $('#obNext').onclick = () => (kind === 'club' ? findClub(onDone) : details(kind, onDone));
+}
+
+export const CLUB_ROLES = ['President', 'Secretary', 'Registrar', 'Treasurer', 'Junior coordinator', 'Coach', 'Committee member', 'Other official'];
+
+// Clubs are pre-listed. Officials claim theirs; anyone else can add a new one.
+function findClub(onDone) {
+  frame('<div class="steps"><i class="on"></i><i class="on"></i></div><h1>Find your club</h1>' +
+    '<p class="muted" style="margin-bottom:18px">We\'ve listed rugby league clubs across Sydney. If yours is here, claim it and we\'ll hand the page over once we\'ve checked you\'re a club official.</p>' +
+    '<div class="card"><input class="in" id="fcQ" placeholder="Search for your club" autocomplete="off"><div id="fcList" style="margin-top:8px"></div></div>' +
+    '<div class="auth-alt">Not listed? <button class="linkbtn" id="fcNew">Add your club</button></div>' +
+    '<div style="margin-top:14px"><button class="btn btn-g" id="fcBack">Back</button></div>');
+  let timer;
+  const list = $('#fcList');
+  const run = async () => {
+    const q = $('#fcQ').value.trim();
+    if (q.length < 2) { list.innerHTML = '<p class="hint-t" style="padding:8px 2px">Type at least two letters, like "Bondi" or "Clovelly".</p>'; return; }
+    try {
+      const clubs = await api.searchClubs(q, { limit: 12 });
+      if ($('#fcQ').value.trim() !== q) return;
+      list.innerHTML = clubs.length ? clubs.map((c) => '<div class="dir-row">' + av(c, 38) + '<div class="grow"><div class="t1" style="font-weight:700;display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + esc(c.display_name) + badges(c) + '</div><div class="small muted">' + esc(subText(c)) + '</div></div>' +
+        (c.owner_id ? '<span class="small muted">Already run by the club</span>' : '<button class="btn btn-o btn-sm" data-claim="' + c.id + '">Claim</button>') + '</div>').join('')
+        : '<p class="hint-t" style="padding:8px 2px">No clubs match. Check the spelling, or add your club below.</p>';
+      list.querySelectorAll('[data-claim]').forEach((b) => { b.onclick = () => claimForm(clubs.find((c) => c.id === b.dataset.claim), onDone); });
+    } catch (e) { list.innerHTML = '<div class="err">' + esc(errMsg(e)) + '</div>'; }
+  };
+  $('#fcQ').oninput = () => { clearTimeout(timer); timer = setTimeout(run, 200); };
+  run();
+  $('#fcNew').onclick = () => details('club', onDone);
+  $('#fcBack').onclick = () => showOnboarding(onDone);
+}
+
+function claimForm(club, onDone) {
+  frame('<h1>Claim ' + esc(club.display_name) + '</h1><p class="muted" style="margin-bottom:18px">Tell us who you are at the club. We check every claim before handing the page over, because clubs post trials for young players.</p>' +
+    '<div class="card"><form class="form" id="clForm" novalidate>' +
+      '<label class="field"><span>Your full name</span><input class="in" id="clName" maxlength="60" autocomplete="name"></label>' +
+      '<label class="field"><span>Your role at the club</span><select class="in" id="clRole">' + CLUB_ROLES.map((r) => '<option>' + r + '</option>').join('') + '</select></label>' +
+      '<label class="field"><span>Your date of birth</span><input class="in" type="date" id="clDob" max="' + todayYMD() + '"><small>Kept private. You need to be 16 or older to have an account.</small></label>' +
+      '<label class="field"><span>How can we confirm you?</span><textarea class="in" id="clNote" maxlength="500" rows="3" placeholder="For example: I\'m listed as registrar on the club website, or call the club on 02 ..."></textarea></label>' +
+      '<div class="err" id="clErr" hidden></div>' +
+      '<div style="display:flex;justify-content:space-between;gap:10px"><button type="button" class="btn btn-g" id="clBack">Back</button><button class="btn btn-p" type="submit">Send claim</button></div>' +
+    '</form></div>');
+  $('#clBack').onclick = () => findClub(onDone);
+  $('#clForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const err = $('#clErr'), btn = e.target.querySelector('[type=submit]');
+    const fail = (m) => { err.textContent = m; err.hidden = false; };
+    err.hidden = true;
+    const name = $('#clName').value.trim(), dob = $('#clDob').value;
+    if (name.length < 2) return fail('Add your name.');
+    if (!dob) return fail('Add your date of birth.');
+    btn.disabled = true;
+    try {
+      const r = await api.claimClub({ p_club: club.id, p_name: name, p_role: $('#clRole').value, p_note: $('#clNote').value.trim() || null, p_dob: dob });
+      if (r.locked) return showLockout();
+      onDone('claim');
+    } catch (ex) { fail(errMsg(ex)); btn.disabled = false; }
+  };
+}
+
+export function showClaimPending(claim) {
+  const club = claim.club || { display_name: 'your club' };
+  frame('<div class="card lock"><div style="display:flex;justify-content:center">' + av(Object.assign({ kind: 'club', color: '#1E3A8A' }, club), 64) + '</div>' +
+    '<div class="disp">Checking your claim</div>' +
+    '<p class="muted" style="max-width:440px;margin:0 auto">We\'re confirming you\'re an official at <b>' + esc(club.display_name) + '</b>. This usually takes a day or two. Once it\'s approved, sign in and you\'ll be running the club page.</p>' +
+    '<div class="sp"></div><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-t" onclick="location.reload()">Check again</button>' +
+    '<button class="btn btn-g" id="clCancel">Cancel claim</button><button class="btn btn-g" data-signout>Sign out</button></div></div>');
+  $('#clCancel').onclick = async () => {
+    try { await api.cancelClaim(claim.id); location.reload(); } catch (e) { alert(errMsg(e)); }
+  };
 }
 
 export function clubPicker(prefix) {
@@ -57,7 +126,9 @@ export function wireClubPicker(prefix, initial) {
   const show = () => {
     const c = match();
     hint.className = c ? 'good' : '';
-    hint.textContent = c ? (c.verified ? 'Verified club. ' : '') + c.display_name + ' will be asked to confirm you.' : (input.value.trim() ? 'Not on On the Burst yet. We\'ll show it as text until your club joins.' : 'Pick your club from the list if it\'s on On the Burst, so it can confirm you.');
+    hint.textContent = c
+      ? (c.owner_id ? (c.verified ? 'Verified club. ' : '') + c.display_name + ' will be asked to confirm you.' : 'Linked to ' + c.display_name + '. They haven\'t joined yet, so they can confirm you once they do.')
+      : (input.value.trim() ? 'Not on On the Burst yet. We\'ll show it as text until your club joins.' : 'Pick your club from the list so it can confirm you.');
   };
   input.addEventListener('input', () => {
     clearTimeout(timer);

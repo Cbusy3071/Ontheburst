@@ -12,6 +12,7 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
 - **Rising Stars:** a parent creates a profile for a child under 16 and switches to act as them. Comments on a Rising Star's posts are held until the parent approves them.
 - **Club confirmation:** players link their club, the club confirms them, and they get a "Registered player" badge.
 - **Posts:** highlight clips (up to 60s and 50 MB, with a poster frame made in the browser and an upload progress bar), text updates, milestones and self-reported stats. Clubs can also post trials, events and team lists.
+- **Club directory:** 174 clubs listed in advance (all 17 NRL clubs, Sydney senior clubs, and junior clubs across 11 Sydney districts plus Group 6). Players can link their club before it joins. Every club shows a "Not partnered yet" badge until an admin switches on Partnered. Club officials claim their page, and an admin approves the claim before the page is handed over.
 - **Club verification:** trials and events need a verified club, so nobody can advertise fake trials to young players.
 - **Feed:** chronological with no paid boosts, plus filters for For you, Following, Highlights, Trials and events, and Rising Stars. Clips autoplay muted and the full-screen vertical viewer comes from the prototype.
 - **Interactions:** likes, comments, follows, saves, sharing, registering for trials, and clubs confirming spots.
@@ -25,7 +26,7 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
 ### 1. Create the Supabase project
 
 1. Go to [supabase.com](https://supabase.com), create a project and pick the Sydney region.
-2. Open **SQL Editor > New query**, paste all of `supabase/schema.sql` and click **Run**. This creates the tables, security rules, triggers and the two storage buckets (`media` for clips, which is private, and `avatars`, which is public). You can run it again safely after editing.
+2. Open **SQL Editor > New query**, paste all of `supabase/schema.sql` and click **Run**. Then do the same with `supabase/seed_clubs.sql` to load the club directory. This creates the tables, security rules, triggers and the two storage buckets (`media` for clips, which is private, and `avatars`, which is public). You can run it again safely after editing.
 3. Go to **Authentication > URL Configuration**:
    - **Site URL:** where the app will live, for example `https://ontheburst.com` or `https://cbusy3071.github.io/Ontheburst/`.
    - **Redirect URLs:** add the same URL plus `http://localhost:5173/` for local development.
@@ -56,6 +57,12 @@ You'll find both values in Supabase under **Project Settings > API**. The anon k
 **Vercel or Netlify (also fine):** import the repo with build command `npm run build` and output folder `dist`, then add the same two environment variables. No rewrites are needed because the app uses `#/` routes.
 
 **Custom domain:** once you own `ontheburst.com`, point it at whichever host you use, then update the Site URL and Redirect URLs in Supabase.
+
+## Managing clubs
+
+Go to **Admin > Club directory** to search any club and switch Partnered on or off. You can also add clubs that are missing. Claims from club officials show under **Club claims** with their email. Approving a claim hands the page to that person and verifies the club. The same controls are in the menu on each club's profile.
+
+The directory was built from the NRL clubs' junior league pages and Wikipedia in October 2026. Junior clubs merge and fold, so expect to correct a few.
 
 ## Before real users arrive
 

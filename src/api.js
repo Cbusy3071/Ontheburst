@@ -3,8 +3,8 @@ import { sb } from './supabase.js';
 import { S } from './state.js';
 import { signPosts } from './media.js';
 
-export const PROFILE_COLS = 'id,owner_id,kind,is_primary,handle,display_name,pos,club_name,club_id,club_status,manager_id,grade,jersey,region,bio,avatar_url,color,verified,follower_count,following_count,profile_views,created_at';
-export const AUTHOR_COLS = 'id,owner_id,kind,handle,display_name,pos,club_name,club_status,grade,jersey,region,avatar_url,color,verified,manager_id';
+export const PROFILE_COLS = 'id,owner_id,kind,is_primary,handle,display_name,pos,club_name,club_id,club_status,manager_id,grade,jersey,region,bio,avatar_url,color,verified,partnered,club_tier,follower_count,following_count,profile_views,created_at';
+export const AUTHOR_COLS = 'id,owner_id,kind,handle,display_name,pos,club_name,club_status,grade,jersey,region,avatar_url,color,verified,partnered,club_tier,manager_id';
 // manager() and club() are computed relationships defined in schema.sql
 const MANAGER = 'manager(display_name,handle)';
 export const POST_SEL = '*,author:profiles!posts_author_id_fkey(' + AUTHOR_COLS + ',' + MANAGER + ')';
@@ -19,14 +19,16 @@ const me = () => S.me && S.me.id;
 /* ---------- account ---------- */
 export async function loadAccount() {
   const uid = S.user.id;
-  const [holder, profiles, admin] = await Promise.all([
+  const [holder, profiles, admin, claim] = await Promise.all([
     sb.from('account_holders').select('locked,dob').eq('user_id', uid).maybeSingle(),
     sb.from('profiles').select(PROFILE_COLS + ',' + MANAGER).eq('owner_id', uid).order('is_primary', { ascending: false }).order('created_at'),
     sb.rpc('is_admin'),
+    sb.from('club_claims').select('id,status,created_at,club:profiles!club_claims_club_id_fkey(id,display_name,handle)').eq('user_id', uid).order('created_at', { ascending: false }).limit(1),
   ]);
   S.holder = check(holder);
   S.profiles = check(profiles) || [];
   S.isAdmin = !admin.error && admin.data === true;
+  S.claim = (claim.data && claim.data[0]) || null;
 }
 export async function ownProfiles() {
   return check(await sb.from('profiles').select(PROFILE_COLS + ',' + MANAGER).eq('owner_id', S.user.id));
@@ -65,12 +67,20 @@ export async function searchProfiles(term, limit = 20) {
     .or('display_name.ilike.*' + t + '*,handle.ilike.*' + t + '*,club_name.ilike.*' + t + '*')
     .order('follower_count', { ascending: false }).limit(limit));
 }
-export async function searchClubs(term) {
+const CLUB_COLS = 'id,owner_id,handle,display_name,region,verified,partnered,club_tier,avatar_url,color,kind,follower_count';
+export async function searchClubs(term, { limit = 8, unclaimedOnly = false } = {}) {
   const t = clean(term);
-  let q = sb.from('profiles').select('id,handle,display_name,region,verified,avatar_url,color,kind').eq('kind', 'club');
+  let q = sb.from('profiles').select(CLUB_COLS).eq('kind', 'club');
   if (t) q = q.ilike('display_name', '%' + t + '%');
-  return check(await q.order('verified', { ascending: false }).order('display_name').limit(8));
+  if (unclaimedOnly) q = q.is('owner_id', null);
+  return check(await q.order('verified', { ascending: false }).order('display_name').limit(limit));
 }
+export const claimClub = (args) => sb.rpc('claim_club', args).then(check);
+export const cancelClaim = async (id) => check(await sb.from('club_claims').delete().eq('id', id));
+export const adminClaims = () => sb.rpc('admin_claims').then(check);
+export const reviewClaim = (id, approve) => sb.rpc('admin_review_claim', { p_claim: id, p_approve: approve }).then(check);
+export const setPartnered = (id, v) => sb.rpc('admin_set_partnered', { p_profile: id, p_partnered: v }).then(check);
+export const addClub = (args) => sb.rpc('admin_add_club', args).then(check);
 
 /* ---------- posts ---------- */
 // Adds liked/saved/registered flags for the acting profile, signs clip URLs,
@@ -204,7 +214,7 @@ export const setVerified = (id, v) => sb.rpc('admin_set_verified', { p_profile: 
 export const addVerifiedStat = async (row) => check(await sb.from('verified_stats').insert(row));
 export const deleteVerifiedStat = async (id) => check(await sb.from('verified_stats').delete().eq('id', id));
 export async function unverifiedClubs() {
-  return check(await sb.from('profiles').select(AUTHOR_COLS + ',created_at').eq('kind', 'club').eq('verified', false).order('created_at', { ascending: false }).limit(50));
+  return check(await sb.from('profiles').select(AUTHOR_COLS + ',created_at').eq('kind', 'club').eq('verified', false).not('owner_id', 'is', null).order('created_at', { ascending: false }).limit(50));
 }
 
 /* ---------- account deletion ---------- */

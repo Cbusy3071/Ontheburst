@@ -132,7 +132,8 @@ export function av(p, size, link) {
   return '<span class="' + cls + '" style="' + style + '">' + inner + '</span>';
 }
 export function badges(p) {
-  return (p.verified ? I.tick : '') + (p.kind === 'rising_star' ? '<span class="rs">' + I.star + 'Rising Star</span>' : '');
+  return (p.verified ? I.tick : '') + (p.kind === 'rising_star' ? '<span class="rs">' + I.star + 'Rising Star</span>' : '') +
+    (p.kind === 'club' && !p.partnered ? '<span class="np">Not partnered yet</span>' : '');
 }
 const isPlayer = (p) => p.kind === 'player' || p.kind === 'rising_star';
 export function subHTML(p) {
@@ -144,7 +145,12 @@ export function subHTML(p) {
 }
 export function subText(p) {
   if (isPlayer(p)) return [p.pos, p.club_name, p.grade].filter(Boolean).join(' · ') || KIND_LABEL[p.kind];
-  if (p.kind === 'club') return ['Rugby league club', p.region].filter(Boolean).join(' · ');
+  if (p.kind === 'club') {
+    if (p.club_tier === 'nrl') return 'NRL club';
+    if (p.club_tier === 'senior') return ['Senior rugby league club', p.region].filter(Boolean).join(' · ');
+    if (p.club_tier === 'junior') return ['Junior rugby league club', p.region ? p.region + ' district' : ''].filter(Boolean).join(' · ');
+    return ['Rugby league club', p.region].filter(Boolean).join(' · ');
+  }
   if (p.kind === 'parent') return 'Parent' + (p.region ? ' · ' + p.region : '');
   if (p.kind === 'fan') return 'Supporter' + (p.club_name ? ' · ' + p.club_name : '');
   return [p.pos || KIND_LABEL[p.kind], p.club_name].filter(Boolean).join(' · ');

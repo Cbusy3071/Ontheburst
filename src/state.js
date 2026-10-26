@@ -6,6 +6,7 @@ export const S = {
   profiles: [],          // profiles this account owns (primary first)
   me: null,              // the profile currently acting (primary, or a managed Rising Star)
   isAdmin: false,
+  claim: null,           // latest club claim this account made
   following: new Set(),  // profile ids the acting profile follows
   posts: new Map(),      // post id -> post (with author, liked, saved, reg)
   unread: 0,
