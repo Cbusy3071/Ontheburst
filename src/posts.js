@@ -69,6 +69,24 @@ export function mediaBlock(p) {
   return '';
 }
 
+// Link preview card (image, title, site) for posts that carry data.preview,
+// e.g. from the news agent. Only official accounts get cards, so nobody can
+// dress a scam link up as a news story.
+const httpsUrl = (u) => { try { const x = new URL(u); return x.protocol === 'https:' ? x : null; } catch (_) { return null; } };
+export function linkPreview(p) {
+  const pv = p.data && p.data.preview;
+  if (!pv || !p.author || !p.author.official) return '';
+  const url = httpsUrl(pv.url);
+  if (!url) return '';
+  const img = pv.image && httpsUrl(pv.image);
+  const site = String(pv.site || url.hostname.replace(/^www\./, '')).slice(0, 60);
+  const title = String(pv.title || '').slice(0, 200);
+  return '<a class="link-preview" href="' + esc(url.href) + '" target="_blank" rel="noopener noreferrer nofollow">' +
+    (img ? '<img src="' + esc(img.href) + '" alt="" loading="lazy" referrerpolicy="no-referrer" data-lp-img>' : '') +
+    '<div class="link-preview__meta">' + (title ? '<span class="link-preview__title">' + esc(title) + '</span>' : '') +
+    '<span class="link-preview__site">' + esc(site) + '</span></div></a>';
+}
+
 export function photosBlock(p) {
   const imgs = (p.image_paths || []).map(mediaUrl).filter(Boolean);
   if (!imgs.length) return '';
@@ -92,7 +110,7 @@ export function postHTML(p) {
       '<div class="time"><a href="#/post/' + p.id + '">' + timeAgo(p.created_at) + edited + '</a> · ' + I.globe + '</div></div>' +
       followBtn(a) + '<button class="iconbtn post-more" data-more="' + p.id + '" aria-label="More options">' + I.more + '</button></header>' +
     (p.caption ? '<div class="post-text" data-caption="' + p.id + '">' + richText(p.caption) + '</div>' : '<div style="height:12px"></div>') +
-    mediaBlock(p) + photosBlock(p) +
+    mediaBlock(p) + photosBlock(p) + linkPreview(p) +
     '<div class="post-stats"><span class="l"><span class="hb">' + I.heartTiny + '</span><span data-likecount="' + p.id + '">' + fmt(p.like_count) + '</span></span>' +
       '<button data-cmts="' + p.id + '" data-cword="' + p.id + '">' + plural(p.comment_count, 'comment') + '</button></div>' +
     '<div class="post-acts">' +

@@ -240,6 +240,9 @@ document.addEventListener('submit', (e) => {
   cm.submit(f);
 });
 
+// Hide link-preview images that fail to load (publisher moved or blocked it).
+document.addEventListener('error', (e) => { if (e.target && e.target.matches && e.target.matches('[data-lp-img]')) e.target.remove(); }, true);
+
 /* ---------- inline autoplay in the feed ---------- */
 const viewedInline = new Set();
 const feedIO = new IntersectionObserver((entries) => {
