@@ -111,15 +111,15 @@ export function cardHTML(profile, card, verified, { editable } = {}) {
   const allVerified = STATS.every((s) => merged.values[s.key] == null || merged.verified[s.key]);
   const tier = tierOf(overall);
   return '<div class="pcard-wrap"><div class="pcard t-' + tier + '">' +
-    '<div class="pc-top"><div class="pc-ovr"><b>' + (overall == null ? '?' : overall) + '</b><span>' + esc(posCode(profile.pos)) + '</span></div>' +
-      '<div class="pc-photo">' + av(profile, 96) + '</div></div>' +
-    '<div class="pc-name">' + esc(profile.display_name) + '</div>' +
-    '<div class="pc-club">' + esc([profile.club_name, profile.grade].filter(Boolean).join(' · ')) + '</div>' +
-    '<div class="pc-stats">' + STATS.map((s) => {
+    '<div class="fc-top"><div class="fc-ovr"><b>' + (overall == null ? '?' : overall) + '</b><span>' + esc(posCode(profile.pos)) + '</span></div>' +
+      '<div class="fc-photo">' + av(profile, 96) + '</div></div>' +
+    '<div class="fc-name">' + esc(profile.display_name) + '</div>' +
+    '<div class="fc-club">' + esc([profile.club_name, profile.grade].filter(Boolean).join(' · ')) + '</div>' +
+    '<div class="fc-stats">' + STATS.map((s) => {
       const r = ratings[s.key], v = merged.values[s.key];
-      return '<div class="pc-stat' + (r == null ? ' empty' : '') + '"><b>' + (r == null ? '?' : r) + '</b><span>' + s.code + (merged.verified[s.key] ? I.tick.replace('width="15" height="15"', 'width="11" height="11"') : '') + '</span><small>' + esc(rawText(s, v)) + '</small></div>';
+      return '<div class="fc-stat' + (r == null ? ' empty' : '') + '"><b>' + (r == null ? '?' : r) + '</b><span>' + s.code + (merged.verified[s.key] ? I.tick.replace('width="15" height="15"', 'width="11" height="11"') : '') + '</span><small>' + esc(rawText(s, v)) + '</small></div>';
     }).join('') + '</div>' +
-    '<div class="pc-foot">' + (count === 0 ? 'No numbers yet' : allVerified && anyVerified ? 'Verified at a combine' : anyVerified ? 'Some stats verified' : 'Self-reported') + '</div>' +
+    '<div class="fc-foot">' + (count === 0 ? 'No numbers yet' : allVerified && anyVerified ? 'Verified at a combine' : anyVerified ? 'Some stats verified' : 'Self-reported') + '</div>' +
   '</div>' +
   '<div class="pcard-side"><h3>Player card</h3><p>' + (overall == null
     ? (count ? 'Add ' + (3 - count) + ' more stat' + (3 - count === 1 ? '' : 's') + ' to get an overall rating.' : (editable ? 'Add your numbers to build your card.' : 'No numbers added yet.'))
