@@ -3,7 +3,7 @@ import { S } from './state.js';
 import * as api from './api.js';
 import { I, esc, av, toast, errMsg, openModal, openMenu, confirmDialog, subText, extractTags, richText, $$, busy, firstName } from './ui.js';
 import { syncLike, syncSave, syncFollow, syncReg, removePostEverywhere } from './posts.js';
-import { removeMedia } from './media.js';
+import { removeMedia, mediaUrl } from './media.js';
 import * as cm from './comments.js';
 import { openViewer, closeViewer } from './viewer.js';
 
@@ -112,7 +112,7 @@ async function deletePost(p) {
   if (!(await confirmDialog({ title: 'Delete post?', text: 'This removes the post, its likes and comments. You can\'t undo it.', ok: 'Delete', danger: true }))) return;
   try {
     await api.deletePost(p.id);
-    removeMedia([p.media_path, p.poster_path]).catch(() => {});
+    removeMedia([p.media_path, p.poster_path].concat(p.image_paths || [])).catch(() => {});
     if (S.viewerOpen) closeViewer(false);
     removePostEverywhere(p.id);
     toast('Post deleted');
@@ -196,8 +196,24 @@ function viewList(el) {
   return ids.map((id) => S.posts.get(id)).filter(Boolean);
 }
 
+function openPhoto(postId, idx) {
+  const p = S.posts.get(postId);
+  if (!p) return;
+  const urls = (p.image_paths || []).map(mediaUrl).filter(Boolean);
+  let i = idx;
+  const m = openModal({ title: p.author.display_name, wide: true, body: '<div class="lightbox"><img alt="" id="lbImg"></div>' + (urls.length > 1 ? '<div class="lb-nav"><button class="btn btn-g btn-sm" data-lb="-1">Previous</button><span class="small muted" id="lbN"></span><button class="btn btn-g btn-sm" data-lb="1">Next</button></div>' : '') });
+  const show = () => {
+    m.el.querySelector('#lbImg').src = urls[i];
+    const n = m.el.querySelector('#lbN');
+    if (n) n.textContent = (i + 1) + ' of ' + urls.length;
+  };
+  m.el.addEventListener('click', (e) => { const b = e.target.closest('[data-lb]'); if (b) { i = (i + +b.dataset.lb + urls.length) % urls.length; show(); } });
+  show();
+}
+
 document.addEventListener('click', (e) => {
   let t;
+  if ((t = e.target.closest('[data-photo]'))) { openPhoto(t.dataset.photo, +t.dataset.idx); return; }
   if ((t = e.target.closest('[data-open]'))) { e.preventDefault(); openViewer(viewList(t), t.dataset.open); return; }
   if ((t = e.target.closest('[data-like]'))) { toggleLike(t.dataset.like); return; }
   if ((t = e.target.closest('[data-save]'))) { toggleSave(t.dataset.save); return; }

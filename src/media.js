@@ -27,7 +27,11 @@ export async function signPaths(paths) {
 export const mediaUrl = (path) => (path && cache.get(path) ? cache.get(path).url : '');
 export async function signPosts(posts) {
   const paths = [];
-  posts.forEach((p) => { if (p && p.kind === 'clip') { paths.push(p.media_path, p.poster_path); } });
+  posts.forEach((p) => {
+    if (!p) return;
+    if (p.kind === 'clip') paths.push(p.media_path, p.poster_path);
+    (p.image_paths || []).forEach((x) => paths.push(x));
+  });
   if (paths.length) await signPaths(paths);
 }
 
@@ -112,6 +116,29 @@ export function posterFrom(v) {
     const seek = () => { v.pause(); try { v.currentTime = t; } catch (_) { draw(); } };
     if (p && p.then) p.then(seek, seek); else seek();
     setTimeout(() => resolve(null), 8000);
+  });
+}
+
+// Shrink a photo to at most `max` px on its longest side as a JPEG (also
+// strips location data and converts HEIC/PNG to something every browser shows).
+export function compressImage(file, max = 1600) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      c.toBlob((b) => (b ? resolve({ blob: b, width: w, height: h }) : reject(new Error('Couldn\'t read that photo'))), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That photo couldn\'t be opened. Try a JPG or PNG.')); };
+    img.src = url;
   });
 }
 

@@ -3,7 +3,7 @@
 import { S } from './state.js';
 import * as api from './api.js';
 import { I, esc, av, toast, errMsg, openModal, extractTags, todayYMD, duration, firstName, KIND_LABEL } from './ui.js';
-import { MAX_CLIP_SECONDS, MAX_CLIP_BYTES, probeVideo, posterFrom, uploadWithProgress, newPath, clipExt, removeMedia } from './media.js';
+import { MAX_CLIP_SECONDS, MAX_CLIP_BYTES, probeVideo, posterFrom, uploadWithProgress, newPath, clipExt, removeMedia, compressImage } from './media.js';
 
 const TYPES = {
   clip: ['Highlight', I.video], text: ['Update', I.text], milestone: ['Milestone', I.medal], stats: ['Stats', I.chart],
@@ -28,7 +28,13 @@ export function allowedTypes(p) {
   return t;
 }
 
+const MAX_PHOTOS = 4;
+const photoBlock = () => '<input type="file" id="phFile" accept="image/*" multiple hidden>' +
+  '<div class="phgrid" id="phGrid"></div>' +
+  '<div class="row-flex"><button type="button" class="btn btn-g btn-sm" id="phAdd">' + I.camera + 'Add photos</button><span class="hint-t" id="phCount">Up to 4</span></div>';
+
 function fieldsFor(type) {
+  if (type === 'text') return photoBlock();
   if (type === 'clip') {
     return '<input type="file" id="cFile" accept="video/mp4,video/quicktime,video/webm,video/*" hidden>' +
       '<div class="drop" id="cDrop" tabindex="0" role="button"><span class="plus">' + I.plus + '</span><b>Choose a highlight</b><span>Up to 60 seconds and 50 MB. MP4 plays everywhere.</span></div>' +
@@ -40,7 +46,7 @@ function fieldsFor(type) {
     return '<div class="grid2"><label class="field"><span>Type</span><select class="in" id="mKick">' + MILESTONES.map((m, i) => '<option value="' + i + '">' + m[0] + '</option>').join('') + '</select></label>' +
       '<label class="field"><span>Headline</span><input class="in" id="mBig" maxlength="14" value="Selected"></label></div>' +
       '<label class="field"><span>What for?</span><input class="in" id="mLine" maxlength="60" placeholder="SG Ball development squad"></label>' +
-      '<label class="field"><span>Details</span><input class="in" id="mSmall" maxlength="60" placeholder="Kensington Kookaburras · 2027 season"></label>';
+      '<label class="field"><span>Details</span><input class="in" id="mSmall" maxlength="60" placeholder="Kensington Kookaburras · 2027 season"></label>' + photoBlock();
   }
   if (type === 'stats') {
     return '<div class="lbl">Your numbers</div><p class="hint-t" style="margin:-8px 0 2px">These show as self-reported until they\'re measured at a combine.</p>' +
@@ -79,6 +85,7 @@ export function openComposer(initial) {
   const types = allowedTypes(S.me);
   let type = types.includes(initial) ? initial : 'clip';
   let clip = null; // { file, probe, poster }
+  let photos = []; // { blob, url }
   let uploading = false;
   const parentHint = S.me.kind === 'parent'
     ? (S.profiles.some((p) => p.kind === 'rising_star')
@@ -97,6 +104,7 @@ export function openComposer(initial) {
       '<div id="cProg" hidden><div class="pbar"><i></i></div><p class="hint-t" style="margin-top:6px" id="cProgT">Uploading...</p></div></form>',
     foot: '<span class="grow">No direct messaging, by design. Keep it about the footy.</span><button class="btn btn-p" id="cGo">Post</button>',
     onClose: () => {
+      photos.forEach((x) => URL.revokeObjectURL(x.url));
       m.el.querySelectorAll('video').forEach((v) => { v.pause(); v.removeAttribute('src'); v.load(); });
       if (clip && clip.probe) { clip.probe.el.removeAttribute('src'); URL.revokeObjectURL(clip.probe.url); }
     },
@@ -107,6 +115,8 @@ export function openComposer(initial) {
   function setType(t) {
     type = t;
     clip = null;
+    photos.forEach((x) => URL.revokeObjectURL(x.url));
+    photos = [];
     err('');
     m.el.querySelectorAll('[data-ctype]').forEach((b) => b.classList.toggle('on', b.dataset.ctype === t));
     $m('#cFields').innerHTML = fieldsFor(t);
@@ -118,9 +128,42 @@ export function openComposer(initial) {
     $m('#cGo').disabled = locked;
     if (t === 'clip') wireClip();
     if (t === 'stats') wireStats();
+    if (t === 'text' || t === 'milestone') wirePhotos();
     if (t === 'milestone') {
       $m('#mKick').onchange = (e) => { $m('#mBig').value = MILESTONES[e.target.value][1]; };
     }
+  }
+
+  function wirePhotos() {
+    const input = $m('#phFile'), grid = $m('#phGrid');
+    const render = () => {
+      grid.innerHTML = photos.map((x, i) => '<div class="phthumb"><img alt="" src="' + x.url + '"><button type="button" class="iconbtn" data-phrm="' + i + '" aria-label="Remove photo">' + I.x + '</button></div>').join('');
+      $m('#phAdd').disabled = photos.length >= MAX_PHOTOS;
+      $m('#phCount').textContent = photos.length ? photos.length + ' of ' + MAX_PHOTOS : 'Up to ' + MAX_PHOTOS;
+    };
+    $m('#phAdd').onclick = () => input.click();
+    input.onchange = async () => {
+      const files = Array.from(input.files || []);
+      input.value = '';
+      for (const f of files) {
+        if (photos.length >= MAX_PHOTOS) { err('Up to ' + MAX_PHOTOS + ' photos per post.'); break; }
+        if (!/^image\//.test(f.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) { err('That isn\'t a photo.'); continue; }
+        try {
+          const c = await compressImage(f);
+          photos.push({ blob: c.blob, url: URL.createObjectURL(c.blob) });
+          err('');
+        } catch (e) { err(errMsg(e)); }
+      }
+      render();
+    };
+    grid.onclick = (e) => {
+      const b = e.target.closest('[data-phrm]');
+      if (!b) return;
+      URL.revokeObjectURL(photos[+b.dataset.phrm].url);
+      photos.splice(+b.dataset.phrm, 1);
+      render();
+    };
+    render();
   }
 
   function wireStats() {
@@ -195,7 +238,7 @@ export function openComposer(initial) {
     const cap = $m('#cCap').value.trim();
     const row = { author_id: S.me.id, kind: type, caption: cap, tags: extractTags(cap), data: {} };
     const v = (s) => { const el = $m(s); return el ? el.value.trim() : ''; };
-    if (type === 'text' && !cap) throw new Error('Write something first.');
+    if (type === 'text' && !cap && !photos.length) throw new Error('Write something or add a photo.');
     if (type === 'clip' && !clip) throw new Error('Choose a clip to upload.');
     if (type === 'clip' && !$m('#cRights').checked) throw new Error('Tick the box to confirm you have the rights to the audio in this video.');
     if (type === 'clip') row.data = { audio_rights_confirmed: true };
@@ -264,6 +307,19 @@ export function openComposer(initial) {
           media_path: mp, poster_path: pp, duration_s: Math.min(MAX_CLIP_SECONDS + 0.5, Math.round(clip.probe.duration * 100) / 100),
           media_width: clip.probe.width, media_height: clip.probe.height,
         });
+      }
+      if (photos.length) {
+        const prog = $m('#cProg'), bar = prog.querySelector('i');
+        prog.hidden = false;
+        row.image_paths = [];
+        for (let i = 0; i < photos.length; i++) {
+          $m('#cProgT').textContent = 'Uploading photo ' + (i + 1) + ' of ' + photos.length;
+          const pth = newPath(S.user.id, 'jpg');
+          await uploadWithProgress('media', pth, photos[i].blob, 'image/jpeg', (f) => { bar.style.width = Math.round(((i + f) / photos.length) * 95) + '%'; });
+          uploaded.push(pth);
+          row.image_paths.push(pth);
+        }
+        $m('#cProgT').textContent = 'Publishing...';
       }
       const post = await api.createPost(row);
       m.close();

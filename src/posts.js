@@ -69,6 +69,13 @@ export function mediaBlock(p) {
   return '';
 }
 
+export function photosBlock(p) {
+  const imgs = (p.image_paths || []).map(mediaUrl).filter(Boolean);
+  if (!imgs.length) return '';
+  return '<div class="pgrid n' + Math.min(imgs.length, 4) + '">' + imgs.map((u, i) =>
+    '<button class="pgrid-i" data-photo="' + p.id + '" data-idx="' + i + '" aria-label="Open photo ' + (i + 1) + '"><img alt="" loading="lazy" src="' + esc(u) + '"></button>').join('') + '</div>';
+}
+
 export function managerLine(a, cls) {
   if (a.kind !== 'rising_star') return '';
   const m = a.manager;
@@ -85,7 +92,7 @@ export function postHTML(p) {
       '<div class="time"><a href="#/post/' + p.id + '">' + timeAgo(p.created_at) + edited + '</a> · ' + I.globe + '</div></div>' +
       followBtn(a) + '<button class="iconbtn post-more" data-more="' + p.id + '" aria-label="More options">' + I.more + '</button></header>' +
     (p.caption ? '<div class="post-text" data-caption="' + p.id + '">' + richText(p.caption) + '</div>' : '<div style="height:12px"></div>') +
-    mediaBlock(p) +
+    mediaBlock(p) + photosBlock(p) +
     '<div class="post-stats"><span class="l"><span class="hb">' + I.heartTiny + '</span><span data-likecount="' + p.id + '">' + fmt(p.like_count) + '</span></span>' +
       '<button data-cmts="' + p.id + '" data-cword="' + p.id + '">' + plural(p.comment_count, 'comment') + '</button></div>' +
     '<div class="post-acts">' +
