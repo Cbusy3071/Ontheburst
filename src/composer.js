@@ -24,7 +24,7 @@ export function allowedTypes(p) {
   const k = p.kind, t = ['clip', 'text'];
   if (k === 'player' || k === 'rising_star') t.push('milestone', 'stats');
   if (k === 'club') t.push('trial', 'team', 'event');
-  else if (S.isAdmin) t.push('event', 'trial');
+  else if (S.isAdmin || p.official) t.push('event', 'trial');
   return t;
 }
 
@@ -32,7 +32,9 @@ function fieldsFor(type) {
   if (type === 'clip') {
     return '<input type="file" id="cFile" accept="video/mp4,video/quicktime,video/webm,video/*" hidden>' +
       '<div class="drop" id="cDrop" tabindex="0" role="button"><span class="plus">' + I.plus + '</span><b>Choose a highlight</b><span>Up to 60 seconds and 50 MB. MP4 plays everywhere.</span></div>' +
-      '<div id="cPrev" hidden></div>';
+      '<div id="cPrev" hidden></div>' +
+      '<div class="warn" style="font-weight:500">Only upload videos containing audio you created or have permission to use. This includes background music.</div>' +
+      '<label class="check"><input type="checkbox" id="cRights">I confirm I have the necessary rights to the audio in this video</label>';
   }
   if (type === 'milestone') {
     return '<div class="grid2"><label class="field"><span>Type</span><select class="in" id="mKick">' + MILESTONES.map((m, i) => '<option value="' + i + '">' + m[0] + '</option>').join('') + '</select></label>' +
@@ -111,7 +113,7 @@ export function openComposer(initial) {
     $m('#cCapLbl').textContent = t === 'text' ? 'What\'s happening?' : 'Caption (optional)';
     $m('#cCap').placeholder = t === 'clip' ? 'Found the gap down the left edge on Saturday...' : t === 'text' ? 'Share an update, a thank you, or a question for the comp' : '';
     const gate = $m('#cGate');
-    const locked = (t === 'trial' || t === 'event') && !(S.me.verified || S.isAdmin);
+    const locked = (t === 'trial' || t === 'event') && !(S.me.verified || S.isAdmin || S.me.official);
     gate.innerHTML = locked ? '<div class="warn">Trials and events unlock once your club is verified. We check every club before it can advertise trials to young players. We\'ll notify you when it\'s done.</div>' : '';
     $m('#cGo').disabled = locked;
     if (t === 'clip') wireClip();
@@ -195,6 +197,8 @@ export function openComposer(initial) {
     const v = (s) => { const el = $m(s); return el ? el.value.trim() : ''; };
     if (type === 'text' && !cap) throw new Error('Write something first.');
     if (type === 'clip' && !clip) throw new Error('Choose a clip to upload.');
+    if (type === 'clip' && !$m('#cRights').checked) throw new Error('Tick the box to confirm you have the rights to the audio in this video.');
+    if (type === 'clip') row.data = { audio_rights_confirmed: true };
     if (type === 'milestone') {
       row.data = { kicker: MILESTONES[$m('#mKick').value][0], big: v('#mBig') || 'Selected', line: v('#mLine'), small: v('#mSmall') };
       if (!row.data.line) throw new Error('Say what the milestone is for.');

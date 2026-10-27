@@ -10,6 +10,7 @@ const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
 let current = null, tapT = null, hintShown = false, slideIO = null;
 const viewed = new Set();
+const completed = new Set();
 
 function slideHTML(p) {
   const a = p.author, on = S.following.has(a.id), mine = S.profiles.some((x) => x.id === a.id);
@@ -86,7 +87,13 @@ function wire() {
   track.querySelectorAll('.slide').forEach((s) => {
     slideIO.observe(s);
     const v = s.querySelector('video'), bar = s.querySelector('.prog i'), stage = s.querySelector('.stage');
-    v.addEventListener('timeupdate', () => { if (v.duration) bar.style.width = (v.currentTime / v.duration * 100) + '%'; });
+    v.addEventListener('timeupdate', () => {
+      if (!v.duration) return;
+      bar.style.width = (v.currentTime / v.duration * 100) + '%';
+      // A watch to 90% is the strongest signal the feed ranking uses.
+      const id = s.dataset.post;
+      if (v.currentTime / v.duration >= 0.9 && !completed.has(id)) { completed.add(id); api.recordCompletion(id).then(() => {}); }
+    });
     v.addEventListener('play', () => stage.classList.remove('paused'));
     v.addEventListener('pause', () => { if (current === s) stage.classList.add('paused'); });
     s.querySelector('.clip').addEventListener('click', (e) => {

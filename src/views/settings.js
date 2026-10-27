@@ -4,6 +4,7 @@ import { S, primary, isPlayerKind } from '../state.js';
 import * as api from '../api.js';
 import { I, esc, av, toast, errMsg, COLORS, openModal, confirmDialog, subText, busy, $ } from '../ui.js';
 import { uploadAvatar, avatarPathFromUrl, removeAllUserFiles } from '../media.js';
+import { STATS, fmtBronco, parseBronco, cardHTML } from '../card.js';
 import { playerFields, wireClubPicker, wireHandle, risingStarForm, wireRisingStarForm } from './onboarding.js';
 
 export default function settingsView(main, { refresh, switchTo }) {
@@ -31,6 +32,15 @@ export default function settingsView(main, { refresh, switchTo }) {
       '<div><button class="btn btn-p" type="submit">Save changes</button></div>' +
     '</form></div>' +
 
+    (player ? '<div class="card set cardform" id="cardSec"><h2>Player card</h2><p>Your numbers build the card on your profile. Combine-verified results replace these automatically.</p>' +
+      '<form class="form" id="pcf" novalidate><div class="grid3">' +
+        '<label class="field"><span>Bench press 1RM (kg)</span><input class="in" id="pcBench" inputmode="decimal" maxlength="5" placeholder="100"></label>' +
+        '<label class="field"><span>Max squat (kg)</span><input class="in" id="pcSquat" inputmode="decimal" maxlength="5" placeholder="140"></label>' +
+        '<label class="field"><span>Max pull-ups (reps)</span><input class="in" id="pcPull" inputmode="numeric" maxlength="3" placeholder="12"></label></div>' +
+        '<div class="grid2"><label class="field"><span>Bronco time (m:ss)</span><input class="in" id="pcBronco" maxlength="5" placeholder="4:55"></label>' +
+        '<label class="field"><span>100m sprint (seconds)</span><input class="in" id="pcSprint" inputmode="decimal" maxlength="5" placeholder="12.4"></label></div>' +
+        '<div class="err" id="pcErr" hidden></div><div><button class="btn btn-p" type="submit">Save numbers</button></div></form>' +
+      '<div id="pcPreview" style="margin:14px -18px -18px"></div></div>' : '') +
     (p.kind === 'club' ? '<div class="card set"><h2>Player confirmations</h2><p>Players who say they\'re registered with ' + esc(p.display_name) + '. Confirming adds a "Registered player" badge to their profile.</p><div id="members"><div class="spin"></div></div></div>' : '') +
 
     (isParent ? '<div class="card set"><h2>Rising Stars</h2><p>Profiles you manage for players under 16. Switch to one to post, like and comment as them.</p>' +
@@ -122,6 +132,48 @@ export default function settingsView(main, { refresh, switchTo }) {
     if (p.kind === 'fan') patch.club_name = v('pfOrg') || null;
     await busy(e.target.querySelector('[type=submit]'), () => save(patch), 'Saving...');
   };
+
+  /* ---- player card ---- */
+  if (player) {
+    const f = (id) => $('#' + id);
+    const read = () => {
+      const num = (v) => (v.trim() === '' ? null : +v.trim().replace(',', '.'));
+      return { bench_kg: num(f('pcBench').value), squat_kg: num(f('pcSquat').value), pullups: num(f('pcPull').value), bronco_s: parseBronco(f('pcBronco').value), sprint100_s: num(f('pcSprint').value) };
+    };
+    let verified = [];
+    const preview = () => { f('pcPreview').innerHTML = cardHTML(S.me, read(), verified, {}); };
+    Promise.all([api.playerCard(p.id).catch(() => null), api.verifiedStats(p.id).catch(() => [])]).then(([c, v]) => {
+      verified = v;
+      if (c) {
+        f('pcBench').value = c.bench_kg ?? '';
+        f('pcSquat').value = c.squat_kg ?? '';
+        f('pcPull').value = c.pullups ?? '';
+        f('pcBronco').value = c.bronco_s != null ? fmtBronco(+c.bronco_s) : '';
+        f('pcSprint').value = c.sprint100_s ?? '';
+      }
+      preview();
+      if (/card=1/.test(location.hash)) $('#cardSec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('#pcf').addEventListener('input', preview);
+    $('#pcf').onsubmit = async (e) => {
+      e.preventDefault();
+      const err = f('pcErr'), vals = read();
+      err.hidden = true;
+      const bad = Object.entries(vals).find(([, v]) => v != null && Number.isNaN(v));
+      const ranges = { bench_kg: [0, 400], squat_kg: [0, 500], pullups: [0, 100], bronco_s: [150, 1200], sprint100_s: [9, 30] };
+      const out = Object.entries(vals).find(([k, v]) => v != null && (v < ranges[k][0] || v > ranges[k][1]));
+      if (bad || out) {
+        const key = (bad || out)[0], s2 = STATS.find((x) => x.key === key);
+        err.textContent = 'Check your ' + s2.label.toLowerCase() + (key === 'bronco_s' ? ' (use m:ss, like 4:55)' : '') + '.';
+        err.hidden = false;
+        return;
+      }
+      if (vals.pullups != null) vals.pullups = Math.round(vals.pullups);
+      await busy(e.target.querySelector('[type=submit]'), async () => {
+        try { await api.savePlayerCard(p.id, vals); toast('Player card updated'); } catch (ex) { err.textContent = errMsg(ex); err.hidden = false; }
+      });
+    };
+  }
 
   /* ---- club confirmations ---- */
   if (p.kind === 'club') loadMembers();

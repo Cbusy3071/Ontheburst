@@ -6,6 +6,7 @@ import { followBtn, tileHTML, managerLine } from '../posts.js';
 import { mountPostList } from './list.js';
 import { reportDialog, profileLink, blockFlow } from '../actions.js';
 import { CLUB_ROLES } from './onboarding.js';
+import { cardHTML } from '../card.js';
 
 export default async function profileView(main, handle, tab) {
   main.innerHTML = '<div class="card">' + spinner() + '</div>';
@@ -53,7 +54,14 @@ export default async function profileView(main, handle, tab) {
     (p.kind === 'club' && !p.owner_id ? '<div class="claim-card">' + I.shield + '<div><b>' + esc(p.display_name) + ' hasn\'t joined On the Burst yet</b>We set up this page so players can link their club. It isn\'t run by the club.</div>' +
       (S.claim && S.claim.status === 'pending' ? '<span class="badge-c pend">Claim pending</span>' : '<button class="btn btn-t btn-sm" data-claimpage>Claim this page</button>') + '</div>' : '') +
     '<div class="tabs" role="tablist"><button data-tab="posts">Posts</button>' + (player || sum.highlights ? '<button data-tab="highlights">Highlights</button>' : '') + (player ? '<button data-tab="stats">Verified stats</button>' : '') + '</div>' +
-  '</div><div id="ptab"></div>';
+  '</div>' + (player ? '<div class="card" id="pcardBox"></div>' : '') + '<div id="ptab"></div>';
+
+  if (player) {
+    api.playerCard(p.id).catch(() => null).then((card) => {
+      const box = main.querySelector('#pcardBox');
+      if (box) box.innerHTML = cardHTML(p, card, vstats, { editable: mine });
+    });
+  }
 
   let followers = p.follower_count;
   const onFollow = (e) => {

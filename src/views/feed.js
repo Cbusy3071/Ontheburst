@@ -39,7 +39,7 @@ export default function feedView(main) {
     if (list) list.destroy();
     const f = S.filter;
     list = mountPostList(main.querySelector('#posts'), {
-      load: (before) => api.feed(f, before),
+      load: (before, offset) => api.feed(f, before, offset),
       empty: () => emptyCard(EMPTY[f][0], EMPTY[f][1], f === 'all' || f === 'clip' ? '<br><button class="btn btn-p" data-compose="clip">Post a highlight</button>' : ''),
     });
   };

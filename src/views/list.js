@@ -4,7 +4,8 @@ import { observeMedia } from '../actions.js';
 import { skeletonPosts, esc, errMsg } from '../ui.js';
 
 export function mountPostList(el, { load, empty, pageSize = 10 }) {
-  let before = null, done = false, loading = false, alive = true, count = 0;
+  let before = null, done = false, loading = false, alive = true, count = 0, fetched = 0;
+  const shown = new Set();
   el.innerHTML = '<div data-items></div><div data-more></div>';
   const items = el.querySelector('[data-items]'), more = el.querySelector('[data-more]');
   const io = new IntersectionObserver((en) => { if (en[0].isIntersecting) next(); }, { rootMargin: '600px' });
@@ -14,13 +15,17 @@ export function mountPostList(el, { load, empty, pageSize = 10 }) {
     loading = true;
     more.innerHTML = skeletonPosts(count ? 1 : 2);
     try {
-      const posts = await load(before);
+      const posts = await load(before, fetched);
       if (!alive) return;
+      fetched += posts.length;
       if (posts.length) {
         before = posts[posts.length - 1].created_at;
-        items.insertAdjacentHTML('beforeend', posts.map(postHTML).join(''));
+        // Ranked feeds page by position, so a post can shift between pages; skip repeats.
+        const fresh = posts.filter((p) => !shown.has(p.id));
+        fresh.forEach((p) => shown.add(p.id));
+        items.insertAdjacentHTML('beforeend', fresh.map(postHTML).join(''));
         observeMedia(items);
-        count += posts.length;
+        count += fresh.length;
       }
       if (posts.length < pageSize) done = true;
       more.innerHTML = '';
@@ -39,6 +44,7 @@ export function mountPostList(el, { load, empty, pageSize = 10 }) {
     prepend(post) {
       const empt = more.querySelector('.empty');
       if (empt) more.innerHTML = '';
+      shown.add(post.id);
       items.insertAdjacentHTML('afterbegin', postHTML(post));
       observeMedia(items);
       count++;

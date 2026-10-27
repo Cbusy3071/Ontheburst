@@ -14,7 +14,9 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
 - **Posts:** highlight clips (up to 60s and 50 MB, with a poster frame made in the browser and an upload progress bar), text updates, milestones and self-reported stats. Clubs can also post trials, events and team lists.
 - **Club directory:** 174 clubs listed in advance (all 17 NRL clubs, Sydney senior clubs, and junior clubs across 11 Sydney districts plus Group 6). Players can link their club before it joins. Every club shows a "Not partnered yet" badge until an admin switches on Partnered. Club officials claim their page, and an admin approves the claim before the page is handed over.
 - **Club verification:** trials and events need a verified club, so nobody can advertise fake trials to young players.
-- **Feed:** chronological with no paid boosts, plus filters for For you, Following, Highlights, Trials and events, and Rising Stars. Clips autoplay muted and the full-screen vertical viewer comes from the prototype.
+- **Feed:** "For you" and "Highlights" are ranked by engagement (see below). The Following, Trials and Rising Stars tabs are chronological. There are no paid boosts. Clips autoplay muted and the full-screen vertical viewer comes from the prototype.
+- **Player card:** a FIFA-style card on every player profile, built from bench press 1RM, max squat, max pull-ups, Bronco and 100m sprint. Ratings are relative to the player's position and age group, the overall is weighted by position, and combine-verified results override self-reported ones.
+- **Official accounts:** On the Burst and On the Burst News are verified, show the logo, and can post events. Set them up with `supabase/setup_official_accounts.sql`.
 - **Interactions:** likes, comments, follows, saves, sharing, registering for trials, and clubs confirming spots.
 - **Alerts:** likes, comments, follows, registrations, comments waiting for approval and club requests, with inline Approve and Confirm buttons.
 - **Search:** people, clubs and #hashtags.
@@ -58,6 +60,23 @@ You'll find both values in Supabase under **Project Settings > API**. The anon k
 **Vercel or Netlify (also fine):** import the repo with build command `npm run build` and output folder `dist`, then add the same two environment variables. No rewrites are needed because the app uses `#/` routes.
 
 **Custom domain:** once you own `ontheburst.com`, point it at whichever host you use, then update the Site URL and Redirect URLs in Supabase.
+
+## How the feed ranks posts
+
+The "For you" and "Highlights" tabs use the same rules for everyone (`get_feed` in `schema.sql`). Posts from the last 30 days are ranked first:
+
+- **Weighted engagement:** likes x1, comments x3, saves x4, full watches x2. A full watch means 90% of a clip in the viewer.
+- **Engagement rate:** engagement per view, smoothed so a post with two views can't top the feed off one lucky like.
+- **Freshness:** scores decay with age, as on Hacker News and Reddit.
+- **New-post boost:** posts under 12 hours old with fewer than 30 views get a lift, so every new player's clip gets a fair first look.
+- **Relevance:** a lift for people you follow, your club and your area.
+- **Variety:** each extra post from the same author is damped, so one account can't flood the top.
+
+Older posts follow in date order. TikTok and Instagram use machine-learned models trained on billions of interactions. At this scale a transparent formula works better, and every weight is a number in `get_feed` you can change.
+
+## Daily news agent
+
+`scripts/post-news.mjs` posts as On the Burst News. It refuses posts without a source link, repeats of a link it has already posted, and more than 3 posts a day. The agent needs network access to your Supabase project, so run it on your own computer or in GitHub Actions. Claude's cloud sandbox blocks outside sites.
 
 ## Managing clubs
 

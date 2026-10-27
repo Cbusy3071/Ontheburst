@@ -3,8 +3,8 @@ import { sb } from './supabase.js';
 import { S } from './state.js';
 import { signPosts } from './media.js';
 
-export const PROFILE_COLS = 'id,owner_id,kind,is_primary,handle,display_name,pos,club_name,club_id,club_status,manager_id,grade,jersey,region,bio,avatar_url,color,verified,partnered,club_tier,follower_count,following_count,profile_views,created_at';
-export const AUTHOR_COLS = 'id,owner_id,kind,handle,display_name,pos,club_name,club_status,grade,jersey,region,avatar_url,color,verified,partnered,club_tier,manager_id';
+export const PROFILE_COLS = 'id,owner_id,kind,is_primary,handle,display_name,pos,club_name,club_id,club_status,manager_id,grade,jersey,region,bio,avatar_url,color,verified,partnered,club_tier,official,follower_count,following_count,profile_views,created_at';
+export const AUTHOR_COLS = 'id,owner_id,kind,handle,display_name,pos,club_name,club_status,grade,jersey,region,avatar_url,color,verified,partnered,club_tier,official,manager_id';
 // manager() and club() are computed relationships defined in schema.sql
 const MANAGER = 'manager(display_name,handle)';
 export const POST_SEL = '*,author:profiles!posts_author_id_fkey(' + AUTHOR_COLS + ',' + MANAGER + ')';
@@ -107,8 +107,11 @@ export async function hydrate(posts) {
     return p;
   });
 }
-export async function feed(filter, before) {
-  const rows = check(await sb.rpc('get_feed', { p_filter: filter, p_viewer: me(), p_before: before || null, p_limit: 10 }).select(POST_SEL));
+// "For you" and "Highlights" are ranked (see get_feed in schema.sql) and page
+// by offset; the other tabs are chronological and page by date.
+export const RANKED = new Set(['all', 'clip']);
+export async function feed(filter, before, offset) {
+  const rows = check(await sb.rpc('get_feed', { p_filter: filter, p_viewer: me(), p_before: RANKED.has(filter) ? null : (before || null), p_limit: 10, p_offset: RANKED.has(filter) ? (offset || 0) : 0 }).select(POST_SEL));
   return hydrate(rows);
 }
 export async function trending() {
@@ -157,6 +160,7 @@ export async function updateCaption(id, caption, tags) {
 }
 export const deletePost = async (id) => check(await sb.from('posts').delete().eq('id', id));
 export const recordView = (id) => sb.rpc('record_view', { p_post: id });
+export const recordCompletion = (id) => sb.rpc('record_completion', { p_post: id });
 
 /* ---------- interactions ---------- */
 const ignoreDup = ({ error }) => { if (error && error.code !== '23505') throw error; };
@@ -197,6 +201,12 @@ export const markAllRead = () => sb.rpc('mark_all_read').then(check);
 export const respondMembership = (playerId, accept) => sb.rpc('respond_membership', { p_player: playerId, p_accept: accept }).then(check);
 export async function pendingMembers(clubId) {
   return check(await sb.from('profiles').select(AUTHOR_COLS).eq('club_id', clubId).eq('club_status', 'pending').order('updated_at', { ascending: false }).limit(100));
+}
+
+/* ---------- player cards ---------- */
+export const playerCard = async (id) => check(await sb.from('player_cards').select('*').eq('profile_id', id).maybeSingle());
+export async function savePlayerCard(id, values) {
+  return check(await sb.from('player_cards').upsert(Object.assign({ profile_id: id }, values), { onConflict: 'profile_id' }).select('*').single());
 }
 
 /* ---------- blocking ---------- */

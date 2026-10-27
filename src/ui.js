@@ -112,9 +112,22 @@ export function duration(s) {
   s = Math.round(Number(s) || 0);
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
-// Escape text, then turn #hashtags into search links.
+const tagify = (html) => html.replace(/(^|[\s(])#([A-Za-z0-9_]{1,30})/g, (m, pre, tag) => pre + '<a class="tags" href="#/search?q=%23' + tag.toLowerCase() + '">#' + tag + '</a>');
+// Escape text, link URLs (opens in a new tab) and turn #hashtags into search links.
 export function richText(s) {
-  return esc(s).replace(/(^|[\s(])#([A-Za-z0-9_]{1,30})/g, (m, pre, tag) => pre + '<a class="tags" href="#/search?q=%23' + tag.toLowerCase() + '">#' + tag + '</a>');
+  s = String(s == null ? '' : s);
+  const re = /https?:\/\/[^\s<>"']+/g, out = [];
+  let last = 0, m;
+  while ((m = re.exec(s))) {
+    const url = m[0].replace(/[.,;:!?)\]]+$/, '');
+    const shown = url.replace(/^https?:\/\/(www\.)?/, '');
+    out.push(tagify(esc(s.slice(last, m.index))));
+    out.push('<a class="tags" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(shown.length > 48 ? shown.slice(0, 45) + '...' : shown) + '</a>');
+    last = m.index + url.length;
+    re.lastIndex = last;
+  }
+  out.push(tagify(esc(s.slice(last))));
+  return out.join('');
 }
 export const extractTags = (s) => Array.from(new Set((String(s).match(/#([A-Za-z0-9_]{1,30})/g) || []).map((t) => t.slice(1).toLowerCase()))).slice(0, 10);
 export function suggestHandle(name) {
@@ -126,7 +139,9 @@ export function av(p, size, link) {
   p = p || {};
   const isOrg = p.kind === 'club';
   const style = 'background:' + esc(p.color || '#334155') + ';width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size * 0.33) + 'px';
-  const inner = p.avatar_url ? '<img alt="" loading="lazy" src="' + esc(p.avatar_url) + '">' : esc(initials(p.display_name));
+  const inner = p.avatar_url ? '<img alt="" loading="lazy" src="' + esc(p.avatar_url) + '">'
+    : p.official ? LOGO_SVG.replace('width="40" height="40"', 'width="' + size + '" height="' + size + '"')
+    : esc(initials(p.display_name));
   const cls = 'av' + (isOrg ? ' org' : '');
   if (link && p.handle) return '<a class="' + cls + '" style="' + style + '" href="#/u/' + esc(p.handle) + '" aria-label="' + esc(p.display_name) + '">' + inner + '</a>';
   return '<span class="' + cls + '" style="' + style + '">' + inner + '</span>';
@@ -144,6 +159,7 @@ export function subHTML(p) {
   return esc(subText(p));
 }
 export function subText(p) {
+  if (p.official) return 'Official account';
   if (isPlayer(p)) return [p.pos, p.club_name, p.grade].filter(Boolean).join(' · ') || KIND_LABEL[p.kind];
   if (p.kind === 'club') {
     if (p.club_tier === 'nrl') return 'NRL club';
@@ -156,6 +172,7 @@ export function subText(p) {
   return [p.pos || KIND_LABEL[p.kind], p.club_name].filter(Boolean).join(' · ');
 }
 export function commentTag(p) {
+  if (p.official) return 'On the Burst';
   if (p.kind === 'club') return 'Club';
   if (p.verified && (p.kind === 'scout' || p.kind === 'coach' || p.kind === 'agent')) return 'Verified ' + KIND_LABEL[p.kind].toLowerCase();
   return subText(p);
