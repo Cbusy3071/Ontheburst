@@ -95,7 +95,8 @@ export const GUIDELINES = '<h1>Community guidelines</h1>' +
   '<h2>Who can join</h2><ul><li>You need to be 16 or older to have an account.</li><li>Players under 16 appear as Rising Stars. A parent or guardian creates and runs the profile, and approves every comment on it.</li><li>Clubs are checked by us before they can post trials.</li></ul>' +
   '<h2>Keep it about the footy</h2><ul><li>Post your own highlights, or footage you have permission to share. Clips can be up to a minute.</li><li>No abuse, bullying, sledging or comments about anyone\'s body or appearance.</li><li>No contact details, school names or home suburbs for players under 18.</li><li>No fake profiles, impersonation or scams.</li></ul>' +
   '<h2>No direct messaging</h2><p>There\'s no private messaging on On the Burst, by design. Scouts and clubs reach players through public comments, trials and the club.</p>' +
-  '<h2>Reporting</h2><p>Use Report on any post or profile and our team will review it. If someone is in danger, call 000.</p>';
+  '<h2>Reporting</h2><p>Use Report on any post or profile and our team will review it. If someone is in danger, call 000.</p>' +
+  '<p><a href="./terms.html" target="_blank" rel="noopener">Terms of use</a> · <a href="./privacy.html" target="_blank" rel="noopener">Privacy policy</a> · <a href="mailto:support@ontheburst.com">support@ontheburst.com</a></p>';
 export function guidelinesView(main) {
   main.innerHTML = '<div class="card prose">' + GUIDELINES + '</div>';
 }

@@ -15,7 +15,7 @@ function shell(card) {
       '<li><i>' + I.star + '</i>Rising Star profiles for under 16s, run by parents</li>' +
       '<li><i>' + I.shield + '</i>No direct messaging, by design</li></ul></div>' +
     '<div class="auth-card">' + card + '</div></div>' +
-    '<div class="auth-foot">© ' + new Date().getFullYear() + ' On the Burst · <a href="#/guidelines" data-guidelines style="text-decoration:underline">Community guidelines</a></div></div>';
+    '<div class="auth-foot">© ' + new Date().getFullYear() + ' On the Burst · <a href="#/guidelines" data-guidelines style="text-decoration:underline">Community guidelines</a> · <a href="./terms.html" style="text-decoration:underline">Terms</a> · <a href="./privacy.html" style="text-decoration:underline">Privacy</a></div></div>';
 }
 
 function bindForm(onSubmit) {
@@ -51,7 +51,7 @@ export function showSignUp() {
   shell('<h1>Join On the Burst</h1><p class="sub2">Players 16 and over, parents, clubs, scouts and coaches.</p>' +
     '<form class="form" id="authForm"><label class="field"><span>Email</span><input class="in" type="email" name="email" autocomplete="email" required></label>' +
     '<label class="field"><span>Password</span><input class="in" type="password" name="password" autocomplete="new-password" minlength="8" required><small>At least 8 characters</small></label>' +
-    '<label class="check"><input type="checkbox" name="agree" required><span>I\'m 16 or older and I agree to the <a class="linkbtn" href="#/guidelines" data-guidelines>community guidelines</a>. Under 16? A parent or guardian signs up and creates a Rising Star profile for you.</span></label>' +
+    '<label class="check"><input type="checkbox" name="agree" required><span>I\'m 16 or older and I agree to the <a class="linkbtn" href="./terms.html" target="_blank" rel="noopener">terms</a>, <a class="linkbtn" href="./privacy.html" target="_blank" rel="noopener">privacy policy</a> and <a class="linkbtn" href="#/guidelines" data-guidelines>community guidelines</a>. Under 16? A parent or guardian signs up and creates a Rising Star profile for you.</span></label>' +
     '<div class="err" id="authErr" hidden></div><button class="btn btn-p btn-block" type="submit">Create account</button></form>' +
     '<div class="auth-alt">Already have an account? <button class="linkbtn" data-auth="signin">Sign in</button></div>');
   bindForm(async (fd) => {

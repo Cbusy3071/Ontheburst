@@ -58,7 +58,7 @@ export async function renderRight() {
   if (!S.me) { el.innerHTML = ''; return; }
   el.innerHTML = '<div class="card"><h3>Upcoming trials</h3><div id="rrTrials"><div class="spin"></div></div><a href="#/trials" class="rr-more">See all trials</a></div>' +
     '<div class="card"><h3>Players to watch</h3><div id="watch"><div class="spin"></div></div><a href="#/search" class="rr-more">Search players</a></div>' +
-    '<div class="foot">On the Burst · <a href="#/guidelines">Community guidelines</a><br>No direct messaging, by design</div>';
+    '<div class="foot">On the Burst · <a href="#/guidelines">Guidelines</a> · <a href="./terms.html" target="_blank" rel="noopener">Terms</a> · <a href="./privacy.html" target="_blank" rel="noopener">Privacy</a><br>No direct messaging, by design</div>';
   try {
     const ev = await api.upcomingLite(3);
     $('#rrTrials').innerHTML = ev.length ? ev.map((p) => '<a class="rr-item" href="#/post/' + p.id + '">' + dateBox(p.event_date) + '<div class="grow"><div class="t1">' + esc((p.data && p.data.title) || 'Trial') + '</div><div class="t2">' + esc([p.author && p.author.display_name, p.data && (p.data.eligibility || p.data.location)].filter(Boolean).join(' · ')) + '</div></div></a>').join('')

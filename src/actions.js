@@ -70,7 +70,7 @@ async function toggleRegister(id, btn) {
 }
 
 export function reportDialog(target, label) {
-  const reasons = ['Inappropriate content', 'Bullying or harassment', 'Concern about a young player\'s safety', 'Impersonation or fake profile', 'Spam or scam', 'Something else'];
+  const reasons = ['Inappropriate content', 'Bullying or harassment', 'Concern about a young player\'s safety', 'Impersonation or fake profile', 'Spam or scam', 'Copyright or music', 'Something else'];
   const m = openModal({
     title: 'Report ' + label,
     body: '<form class="form" id="repForm"><p class="muted small">Reports go to the On the Burst team and are kept private. If someone is in danger, call 000.</p>' +
