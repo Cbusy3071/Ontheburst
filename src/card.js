@@ -124,7 +124,7 @@ export function cardHTML(profile, card, verified, { editable } = {}) {
   '<div class="pcard-side"><h3>Player card</h3><p>' + (overall == null
     ? (count ? 'Add ' + (3 - count) + ' more stat' + (3 - count === 1 ? '' : 's') + ' to get an overall rating.' : (editable ? 'Add your numbers to build your card.' : 'No numbers added yet.'))
     : 'Overall is weighted for a ' + esc((profile.pos || 'player').toLowerCase()) + '. Each rating compares the number with what\'s expected for the position' + (juniorFactor(profile.grade) < 1 ? ' and age group' : '') + '.') + '</p>' +
-    '<p class="small muted">Ratings run 1 to 99. Gold from 70, On the Burst orange from 80. Combine-verified numbers show a tick.</p>' +
+    '<p class="small muted">Ratings run 1 to 99. Gold from 70, On the Burst green from 80. Combine-verified numbers show a tick.</p>' +
     (editable ? '<a class="btn btn-o btn-sm" href="#/settings?card=1">' + I.edit + (count ? 'Update numbers' : 'Add numbers') + '</a>' : '') +
   '</div></div>';
 }

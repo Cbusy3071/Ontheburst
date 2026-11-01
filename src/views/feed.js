@@ -17,14 +17,14 @@ const EMPTY = {
 
 function composerHTML() {
   const k = S.me.kind;
-  const second = k === 'club' ? ['trial', I.clip.replace('width="18" height="18"', 'width="20" height="20"').replace('currentColor', '#1F6B4E'), 'Trial'] : ['stats', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F6B4E" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke-linecap="round"/></svg>', 'Stats'];
-  const third = k === 'club' ? '<button data-compose="team"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9A6400" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>Team list</button>'
-    : '<a href="#/trials" class="cbtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9A6400" stroke-width="2"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M8.5 10h7M8.5 14h7" stroke-linecap="round"/></svg>Find a trial</a>';
+  const second = k === 'club' ? ['trial', I.clip.replace('width="18" height="18"', 'width="20" height="20"'), 'Trial'] : ['stats', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke-linecap="round"/></svg>', 'Stats'];
+  const third = k === 'club' ? '<button data-compose="team"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>Team list</button>'
+    : '<a href="#/trials" class="cbtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M8.5 10h7M8.5 14h7" stroke-linecap="round"/></svg>Find a trial</a>';
   const showStats = k === 'player' || k === 'rising_star' || k === 'club';
   return '<div class="card composer"><div class="comp-row">' + av(S.me, 46) +
     '<button class="comp-input" data-compose="' + (k === 'parent' || k === 'fan' ? 'text' : 'clip') + '">' + esc(composeLabel()) + '</button></div>' +
-    '<div class="comp-acts"><button data-compose="clip"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" stroke-width="2"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5l6-3.5v10l-6-3.5" stroke-linejoin="round"/></svg>Clip</button>' +
-    (showStats ? '<button data-compose="' + second[0] + '">' + second[1] + second[2] + '</button>' : '<button data-compose="text"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F6B4E" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M5 11h14M5 16h9"/></svg>Update</button>') +
+    '<div class="comp-acts"><button data-compose="clip"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5l6-3.5v10l-6-3.5" stroke-linejoin="round"/></svg>Clip</button>' +
+    (showStats ? '<button data-compose="' + second[0] + '">' + second[1] + second[2] + '</button>' : '<button data-compose="text"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M5 11h14M5 16h9"/></svg>Update</button>') +
     third + '</div></div>';
 }
 

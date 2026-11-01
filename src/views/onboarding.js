@@ -16,7 +16,7 @@ const KINDS = [
 ];
 
 function top() {
-  return '<div class="ob-top"><span class="logo">' + LOGO_SVG.replace('width="40" height="40"', 'width="34" height="34"') + '<span class="wm" style="color:var(--turf)">On the <b>Burst</b></span></span>' +
+  return '<div class="ob-top"><span class="logo">' + LOGO_SVG.replace('width="40" height="40"', 'width="34" height="34"') + '<span class="wm">On the <b>Burst</b></span></span>' +
     '<button class="linkbtn" data-signout>Sign out</button></div>';
 }
 function frame(html) {

@@ -3,6 +3,7 @@
 import { S, primary, isPlayerKind } from './state.js';
 import * as api from './api.js';
 import { I, esc, fmt, av, badges, subHTML, dateBox, openMenu, $, $$, KIND_LABEL } from './ui.js';
+import { currentTheme } from './theme.js';
 
 export function strength(p, sum) {
   sum = sum || {};
@@ -102,6 +103,7 @@ export function meMenu(anchor, onAction) {
     '<button data-act="settings">' + I.gear + 'Settings</button>' +
     (S.isAdmin ? '<button data-act="admin">' + I.admin + 'Admin</button>' : '') +
     '<button data-act="guidelines">' + I.flag + 'Community guidelines</button>' +
+    '<button data-act="theme" role="switch" aria-checked="' + (currentTheme() === 'dark') + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></svg>Dark mode<span class="switch' + (currentTheme() === 'dark' ? ' on' : '') + '"></span></button>' +
     '<hr><button data-act="signout" class="danger">' + I.out + 'Sign out</button>';
   openMenu(anchor, html, onAction);
 }

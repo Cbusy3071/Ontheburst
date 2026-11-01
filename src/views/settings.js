@@ -5,6 +5,7 @@ import * as api from '../api.js';
 import { I, esc, av, toast, errMsg, COLORS, openModal, confirmDialog, subText, busy, $ } from '../ui.js';
 import { uploadAvatar, avatarPathFromUrl, removeAllUserFiles } from '../media.js';
 import { STATS, fmtBronco, parseBronco, cardHTML } from '../card.js';
+import { themePref, setTheme } from '../theme.js';
 import { playerFields, wireClubPicker, wireHandle, risingStarForm, wireRisingStarForm } from './onboarding.js';
 
 export default function settingsView(main, { refresh, switchTo }) {
@@ -49,6 +50,8 @@ export default function settingsView(main, { refresh, switchTo }) {
         '<button class="iconbtn" data-rm-rs="' + m.id + '" aria-label="Delete profile">' + I.trash + '</button></div>').join('') : '<div class="muted small" style="padding:6px 0 4px">No Rising Star profiles yet.</div>') +
       '<div style="margin-top:12px"><button class="btn btn-p btn-sm" id="addRs">' + I.plus + 'Add a Rising Star</button></div></div>' : '') +
 
+    '<div class="card set"><h2>Appearance</h2><p>System follows your phone or computer\'s light/dark setting.</p><div class="theme-seg" id="themeSeg">' +
+      ['system', 'light', 'dark'].map((v) => '<button type="button" data-theme-set="' + v + '"' + (themePref() === v ? ' class="on"' : '') + '>' + v[0].toUpperCase() + v.slice(1) + '</button>').join('') + '</div></div>' +
     '<div class="card set"><h2>Blocked</h2><p>People you\'ve blocked can\'t see your posts, comment, like or follow you, and you won\'t see theirs.</p><div id="blockedList"><div class="spin"></div></div></div>' +
     '<div class="card set"><h2>Account</h2><p>Signed in as <b>' + esc(S.user.email) + '</b>.</p>' +
       '<form class="form" id="pwf"><label class="field"><span>New password</span><input class="in" type="password" id="pw1" minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label>' +
@@ -201,6 +204,11 @@ export default function settingsView(main, { refresh, switchTo }) {
 
   const onClick = async (e) => {
     let t;
+    if ((t = e.target.closest('[data-theme-set]'))) {
+      setTheme(t.dataset.themeSet);
+      main.querySelectorAll('[data-theme-set]').forEach((b) => b.classList.toggle('on', b === t));
+      return;
+    }
     if ((t = e.target.closest('[data-act-as]'))) { switchTo(t.dataset.actAs); return; }
     if ((t = e.target.closest('[data-rm-rs]'))) {
       const rs = S.profiles.find((x) => x.id === t.dataset.rmRs);

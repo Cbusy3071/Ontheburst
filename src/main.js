@@ -1,5 +1,6 @@
 // Boot: auth state, onboarding, the shell and a tiny hash router.
 import './styles.css';
+import { setTheme, currentTheme } from './theme.js';
 import { sb, configured } from './supabase.js';
 import { S, primary, rememberActing, recallActing } from './state.js';
 import * as api from './api.js';
@@ -220,6 +221,7 @@ document.addEventListener('click', (e) => {
       if (act === 'settings') location.hash = '#/settings';
       if (act === 'admin') location.hash = '#/admin';
       if (act === 'guidelines') location.hash = '#/guidelines';
+      if (act === 'theme') setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
       if (act === 'signout') sb.auth.signOut();
     });
   }

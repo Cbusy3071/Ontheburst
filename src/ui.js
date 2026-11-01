@@ -11,7 +11,7 @@ export const I = {
   heart: ic(21, '<path d="' + HEART_D + '"/>'),
   heartBig: ic(28, '<path d="' + HEART_D + '"/>'),
   heartPop: '<svg width="120" height="120" viewBox="0 0 24 24"><path d="' + HEART_D + '" fill="currentColor"/></svg>',
-  heartTiny: '<svg width="10" height="10" viewBox="0 0 24 24"><path d="' + HEART_D + '" fill="#fff"/></svg>',
+  heartTiny: '<svg width="10" height="10" viewBox="0 0 24 24"><path d="' + HEART_D + '" fill="currentColor"/></svg>',
   comment: ic(21, '<path d="M4 5h16v11H9l-5 4z"/>'),
   commentBig: ic(27, '<path d="M12 4c4.7 0 8.5 3.2 8.5 7.2s-3.8 7.2-8.5 7.2c-1 0-2-.1-2.9-.4L4 20l1.3-3.9C4.2 14.8 3.5 13.1 3.5 11.2 3.5 7.2 7.3 4 12 4z"/>'),
   share: ic(21, '<path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/>'),
@@ -33,7 +33,7 @@ export const I = {
   pin: ic(16, '<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0113 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>'),
   people: ic(16, '<circle cx="9" cy="8.5" r="3.3"/><path d="M3 19.5c.6-3.4 3-5 6-5s5.4 1.6 6 5M16 5.5a3 3 0 010 6M18 14.6c1.7.6 2.8 2.2 3 4.9"/>'),
   shield: ic(15, '<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/>'),
-  trophy: ic(30, '<path d="M8 4h8v5a4 4 0 01-8 0zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8.5 20h7M10 17h4"/>', 'fill="none" stroke="#FF8A3D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'),
+  trophy: ic(30, '<path d="M8 4h8v5a4 4 0 01-8 0zM8 6H5a3 3 0 003 4M16 6h3a3 3 0 01-3 4M12 13v4M8.5 20h7M10 17h4"/>', 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'),
   eye: ic(12, '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/>', 'fill="none" stroke="#fff" stroke-width="2.4"'),
   more: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
   x: ic(18, '<path d="M6 6l12 12M18 6L6 18"/>', 'fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"'),
@@ -55,7 +55,7 @@ export const I = {
   admin: ic(16, '<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z"/>'),
   camera: ic(16, '<path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'),
 };
-export const LOGO_SVG = '<svg width="40" height="40" viewBox="0 0 40 40"><rect width="40" height="40" rx="11" fill="#FF5B1F"/><g transform="rotate(-30 21 21)"><path d="M5 16.4h7M3.5 21h8.5M5 25.6h7" stroke="#0D2B20" stroke-width="2.5" stroke-linecap="round"/><path d="M14.5 21C17.5 12.6 32.5 12.6 35.5 21C32.5 29.4 17.5 29.4 14.5 21Z" fill="#0D2B20"/><path d="M14.9 21C19 17.4 31 17.4 35.1 21M14.9 21C19 24.6 31 24.6 35.1 21" fill="none" stroke="#FF5B1F" stroke-width="1.35"/></g></svg>';
+export const LOGO_SVG = '<svg width="40" height="40" viewBox="0 0 40 40"><rect width="40" height="40" rx="11" fill="#2EF080"/><g transform="rotate(-30 21 21)"><path d="M5 16.4h7M3.5 21h8.5M5 25.6h7" stroke="#0D2B20" stroke-width="2.5" stroke-linecap="round"/><path d="M14.5 21C17.5 12.6 32.5 12.6 35.5 21C32.5 29.4 17.5 29.4 14.5 21Z" fill="#0D2B20"/><path d="M14.9 21C19 17.4 31 17.4 35.1 21M14.9 21C19 24.6 31 24.6 35.1 21" fill="none" stroke="#2EF080" stroke-width="1.35"/></g></svg>';
 
 export const COLORS = ['#2F6FED', '#0E8A5F', '#B4452B', '#C2410C', '#7A4E12', '#1E3A8A', '#3B5BDB', '#0F766E', '#6D28D9', '#9333EA', '#DB2777', '#0891B2', '#166534', '#334155'];
 export const randomColor = () => COLORS[Math.floor(Math.random() * COLORS.length)];

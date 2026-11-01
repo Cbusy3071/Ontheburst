@@ -3,7 +3,7 @@
   "short_name": "On the Burst",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0D2B20",
-  "theme_color": "#0D2B20",
+  "background_color": "#16191B",
+  "theme_color": "#1E2225",
   "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }
