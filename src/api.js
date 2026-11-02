@@ -3,8 +3,8 @@ import { sb } from './supabase.js';
 import { S } from './state.js';
 import { signPosts } from './media.js';
 
-export const PROFILE_COLS = 'id,owner_id,kind,is_primary,handle,display_name,pos,club_name,club_id,club_status,manager_id,grade,jersey,region,bio,avatar_url,color,verified,partnered,club_tier,official,follower_count,following_count,profile_views,created_at';
-export const AUTHOR_COLS = 'id,owner_id,kind,handle,display_name,pos,club_name,club_status,grade,jersey,region,avatar_url,color,verified,partnered,club_tier,official,manager_id';
+export const PROFILE_COLS = 'id,kind,is_primary,handle,display_name,pos,club_name,club_id,club_status,manager_id,grade,jersey,region,bio,avatar_url,color,verified,partnered,club_tier,official,follower_count,following_count,profile_views,created_at,is_claimed';
+export const AUTHOR_COLS = 'id,kind,handle,display_name,pos,club_name,club_status,grade,jersey,region,avatar_url,color,verified,partnered,club_tier,official,manager_id,is_claimed';
 // manager() and club() are computed relationships defined in schema.sql
 const MANAGER = 'manager(display_name,handle)';
 export const POST_SEL = '*,author:profiles!posts_author_id_fkey(' + AUTHOR_COLS + ',' + MANAGER + ')';
@@ -21,7 +21,7 @@ export async function loadAccount() {
   const uid = S.user.id;
   const [holder, profiles, admin, claim] = await Promise.all([
     sb.from('account_holders').select('locked,dob').eq('user_id', uid).maybeSingle(),
-    sb.from('profiles').select(PROFILE_COLS + ',' + MANAGER).eq('owner_id', uid).order('is_primary', { ascending: false }).order('created_at'),
+    sb.rpc('my_profiles').select(PROFILE_COLS + ',' + MANAGER).order('is_primary', { ascending: false }).order('created_at'),
     sb.rpc('is_admin'),
     sb.from('club_claims').select('id,status,created_at,club:profiles!club_claims_club_id_fkey(id,display_name,handle)').eq('user_id', uid).order('created_at', { ascending: false }).limit(1),
   ]);
@@ -31,7 +31,7 @@ export async function loadAccount() {
   S.claim = (claim.data && claim.data[0]) || null;
 }
 export async function ownProfiles() {
-  return check(await sb.from('profiles').select(PROFILE_COLS + ',' + MANAGER).eq('owner_id', S.user.id));
+  return check(await sb.rpc('my_profiles').select(PROFILE_COLS + ',' + MANAGER));
 }
 export const completeOnboarding = (args) => sb.rpc('complete_onboarding', args).then(check);
 export const createRisingStar = (args) => sb.rpc('create_rising_star', args).then(check);
@@ -67,7 +67,7 @@ export async function searchProfiles(term, limit = 20) {
     .or('display_name.ilike.*' + t + '*,handle.ilike.*' + t + '*,club_name.ilike.*' + t + '*')
     .order('follower_count', { ascending: false }).limit(limit));
 }
-const CLUB_COLS = 'id,owner_id,handle,display_name,region,verified,partnered,club_tier,avatar_url,color,kind,follower_count';
+const CLUB_COLS = 'id,handle,display_name,region,verified,partnered,club_tier,avatar_url,color,kind,follower_count,is_claimed';
 export async function searchClubs(term, { limit = 8, unclaimedOnly = false } = {}) {
   const t = clean(term);
   let q = sb.from('profiles').select(CLUB_COLS).eq('kind', 'club');
