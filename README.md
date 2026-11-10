@@ -42,7 +42,7 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
 
 ### Google and Apple sign in
 
-The buttons call `supabase.auth.signInWithOAuth`. Until a provider is switched on in Supabase, its button lands on a Supabase error page. New Google or Apple users go through the same onboarding as email users, so the date of birth check and under-16 lockout still apply. Throughout, `<ref>` is your Supabase project ref and the callback URL is `https://<ref>.supabase.co/auth/v1/callback` (Supabase shows it on each provider's settings page).
+The buttons call `supabase.auth.signInWithOAuth`. The Apple button currently shows as "coming soon"; once Apple is set up below, give it `data-oauth="apple"` and drop `disabled` in `src/views/auth.js`. Until a provider is switched on in Supabase, its button lands on a Supabase error page. New Google or Apple users go through the same onboarding as email users, so the date of birth check and under-16 lockout still apply. Throughout, `<ref>` is your Supabase project ref and the callback URL is `https://<ref>.supabase.co/auth/v1/callback` (Supabase shows it on each provider's settings page).
 
 **Google**
 1. In [Google Cloud Console](https://console.cloud.google.com), create a project, then open **Google Auth Platform**.

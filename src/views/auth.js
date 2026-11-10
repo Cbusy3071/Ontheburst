@@ -42,7 +42,8 @@ const APPLE_LOGO = '<svg width="16" height="18" viewBox="0 0 814 1000" aria-hidd
 function oauthBlock(verb) {
   return '<div class="oauth">' +
     '<button type="button" class="btn btn-block btn-oauth btn-google" data-oauth="google">' + G_LOGO + verb + ' with Google</button>' +
-    '<button type="button" class="btn btn-block btn-oauth btn-apple" data-oauth="apple">' + APPLE_LOGO + verb + ' with Apple</button>' +
+    // Apple: switch to data-oauth="apple" once the provider is set up in Supabase (see README).
+    '<button type="button" class="btn btn-block btn-oauth btn-apple" disabled aria-disabled="true">' + APPLE_LOGO + 'Apple sign in coming soon</button>' +
     '<div class="err" id="oauthErr" hidden></div></div>' +
     '<div class="or"><span>or use email</span></div>';
 }
@@ -68,7 +69,7 @@ async function startOAuth(provider, btn) {
   // On success the browser is already leaving for Google or Apple.
 }
 
-const OAUTH_TERMS = '<p class="oauth-terms">By continuing with Google or Apple you confirm you\'re 16 or older and agree to the <a class="linkbtn" href="./terms.html" target="_blank" rel="noopener">terms</a>, <a class="linkbtn" href="./privacy.html" target="_blank" rel="noopener">privacy policy</a> and <a class="linkbtn" href="#/guidelines" data-guidelines>community guidelines</a>.</p>';
+const OAUTH_TERMS = '<p class="oauth-terms">By continuing with Google you confirm you\'re 16 or older and agree to the <a class="linkbtn" href="./terms.html" target="_blank" rel="noopener">terms</a>, <a class="linkbtn" href="./privacy.html" target="_blank" rel="noopener">privacy policy</a> and <a class="linkbtn" href="#/guidelines" data-guidelines>community guidelines</a>.</p>';
 
 export function showSignIn(notice) {
   shell('<h1>Sign in</h1><p class="sub2">Welcome back.</p>' +
