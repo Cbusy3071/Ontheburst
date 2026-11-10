@@ -40,6 +40,28 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
    select id from auth.users where email = 'callumbushbrady@gmail.com';
    ```
 
+### Google and Apple sign in
+
+The buttons call `supabase.auth.signInWithOAuth`. Until a provider is switched on in Supabase, its button lands on a Supabase error page. New Google or Apple users go through the same onboarding as email users, so the date of birth check and under-16 lockout still apply. Throughout, `<ref>` is your Supabase project ref and the callback URL is `https://<ref>.supabase.co/auth/v1/callback` (Supabase shows it on each provider's settings page).
+
+**Google**
+1. In [Google Cloud Console](https://console.cloud.google.com), create a project, then open **Google Auth Platform**.
+2. **Branding:** app name On the Burst, your support email, logo, links to `terms.html` and `privacy.html`, and authorised domains `ontheburst.com` and `<ref>.supabase.co`.
+3. **Data access:** keep the default `openid`, `email` and `profile` scopes. Nothing sensitive, so no Google security review.
+4. **Clients > Create client > Web application.** Authorised JavaScript origins: `https://ontheburst.com` and `http://localhost:5173`. Authorised redirect URI: the Supabase callback URL.
+5. In Supabase, **Authentication > Sign In / Providers > Google**: enable it and paste the client ID and secret.
+6. **Audience > Publish app.** While it's in testing, only listed test users can sign in.
+
+**Apple** (needs a paid Apple Developer membership, which the App Store needs anyway)
+1. In [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list), create an **App ID** (e.g. `com.ontheburst.app`) with Sign in with Apple ticked. The iOS app reuses it later.
+2. Create a **Services ID** (e.g. `com.ontheburst.web`). Tick Sign in with Apple, click Configure, pick the App ID, set Domains to `<ref>.supabase.co` and Return URLs to the Supabase callback URL.
+3. **Keys:** create a key with Sign in with Apple and download the `.p8` (Apple only lets you download it once). Note the Key ID and your Team ID.
+4. In Supabase, **Authentication > Sign In / Providers > Apple**: enable it, put the Services ID in Client IDs, and paste a secret generated from the `.p8`, Key ID, Team ID and Services ID (the Supabase Apple docs have a generator).
+5. The secret expires after six months. Put a reminder in your calendar or Apple sign in quietly breaks.
+6. People who pick "Hide My Email" get an `@privaterelay.appleid.com` address. Once you set up custom SMTP, register your sending domain under **Sign in with Apple for Email Communication** or emails to those users bounce.
+
+If someone signs in with Google using the same verified email as an existing email account, Supabase links them to the one account.
+
 ### 2. Run it locally
 
 ```bash

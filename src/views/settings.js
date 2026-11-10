@@ -13,6 +13,10 @@ export default function settingsView(main, { refresh, switchTo }) {
   const player = isPlayerKind(p.kind), role = ['scout', 'coach', 'agent'].includes(p.kind);
   const isParent = prim && prim.kind === 'parent';
   const managed = S.profiles.filter((x) => x.kind === 'rising_star');
+  // Google/Apple-only accounts have no password until they set one here.
+  const providers = (S.user.app_metadata && S.user.app_metadata.providers) || ['email'];
+  const hasPw = providers.includes('email');
+  const via = providers.includes('apple') ? 'Apple' : providers.includes('google') ? 'Google' : 'email';
 
   main.innerHTML =
     '<div class="card set"><h2>Edit profile</h2><p>' + (p.is_primary ? 'Your public profile.' : 'You\'re editing ' + esc(p.display_name) + '\'s Rising Star profile.') + '</p>' +
@@ -53,9 +57,9 @@ export default function settingsView(main, { refresh, switchTo }) {
     '<div class="card set"><h2>Appearance</h2><p>System follows your phone or computer\'s light/dark setting.</p><div class="theme-seg" id="themeSeg">' +
       ['system', 'light', 'dark'].map((v) => '<button type="button" data-theme-set="' + v + '"' + (themePref() === v ? ' class="on"' : '') + '>' + v[0].toUpperCase() + v.slice(1) + '</button>').join('') + '</div></div>' +
     '<div class="card set"><h2>Blocked</h2><p>People you\'ve blocked can\'t see your posts, comment, like or follow you, and you won\'t see theirs.</p><div id="blockedList"><div class="spin"></div></div></div>' +
-    '<div class="card set"><h2>Account</h2><p>Signed in as <b>' + esc(S.user.email) + '</b>.</p>' +
+    '<div class="card set"><h2>Account</h2><p>Signed in as <b>' + esc(S.user.email || 'your ' + via + ' account') + '</b>' + (hasPw ? '' : ' with ' + via) + '.</p>' +
       '<form class="form" id="pwf"><label class="field"><span>New password</span><input class="in" type="password" id="pw1" minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label>' +
-      '<div><button class="btn btn-g btn-sm" type="submit">Change password</button></div></form>' +
+      '<div><button class="btn btn-g btn-sm" type="submit">' + (hasPw ? 'Change password' : 'Set a password') + '</button></div></form>' +
       '<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap"><button class="btn btn-g btn-sm" data-signout>' + I.out + 'Sign out</button></div></div>' +
 
     '<div class="card set danger-zone"><h2>Delete account</h2><p>Deletes your account, ' + (managed.length ? 'every Rising Star profile you manage, ' : '') + 'your posts, clips, comments and likes. This can\'t be undone.</p>' +

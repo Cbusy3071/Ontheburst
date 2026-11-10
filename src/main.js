@@ -32,6 +32,9 @@ document.addEventListener('otb:posted', () => setTimeout(refreshRails, 300));
 const url = new URL(location.href);
 const urlError = url.searchParams.get('error_description') || new URLSearchParams(location.hash.replace(/^#/, '')).get('error_description');
 const hadCode = url.searchParams.has('code');
+// Set by the Google/Apple buttons so a returning ?code= isn't mistaken for an email link.
+let oauthReturn = false;
+try { oauthReturn = !!localStorage.getItem('otb.oauth'); localStorage.removeItem('otb.oauth'); } catch (_) { /* ignore */ }
 
 function cleanUrl() {
   const h = location.hash;
@@ -58,13 +61,14 @@ async function handleAuth(event, session) {
   if (!session) {
     cleanUrl();
     if (urlError && !started) showSignIn(urlError.replace(/\+/g, ' '));
+    else if (hadCode && oauthReturn && !started) showSignIn('That sign in didn\'t go through. Try again, or use your email and password.');
     else if (hadCode && !started) showSignIn('Your email is confirmed. Sign in to continue.');
     else showSignIn();
     return;
   }
   let pendingReset = false;
   try { pendingReset = localStorage.getItem('otb.recovery') === '1'; } catch (_) { /* ignore */ }
-  if (pendingReset && hadCode && !started) {
+  if (pendingReset && hadCode && !oauthReturn && !started) {
     recovery = true;
     cleanUrl();
     showNewPassword(() => { recovery = false; enter(session, true); });
