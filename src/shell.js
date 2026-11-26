@@ -97,7 +97,7 @@ export function setActiveNav(key) {
 // The Me menu for someone browsing as a guest.
 export function guestMenu(anchor, onAction) {
   const html = '<div class="row-flex" style="padding:8px 10px 10px"><div class="grow"><b style="font-size:14px">Browsing as a guest</b><div class="small muted">Join free to post and follow</div></div></div>' +
-    '<button data-act="google">' + I.google.replace('width="18" height="18"', 'width="16" height="16"') + 'Continue with Google</button>' +
+    '<button data-act="google" data-google>' + I.google.replace('width="18" height="18"', 'width="16" height="16"') + 'Continue with Google</button>' +
     '<button data-act="signup">' + I.plus + 'Create account</button>' +
     '<button data-act="signin">' + I.user + 'Sign in</button>' +
     '<hr><button data-act="guidelines">' + I.flag + 'Community guidelines</button>' +

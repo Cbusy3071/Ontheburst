@@ -726,3 +726,4 @@ select.in{appearance:none;-webkit-appearance:none;background-image:url("data:ima
 .guest-banner b{display:block;font-size:15px;margin-bottom:2px}
 .guest-banner span{display:block;color:var(--ink2);font-size:13px}
 .guest-cmt{justify-content:center}
+body:not(.google-on) [data-google]{display:none!important}

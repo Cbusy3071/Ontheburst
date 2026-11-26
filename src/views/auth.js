@@ -39,9 +39,9 @@ export async function signInWithGoogle() {
 }
 
 function googleBlock(verb) {
-  return '<button type="button" class="btn btn-google btn-block" data-auth="google">' + I.google + verb + ' with Google</button>' +
+  return '<div data-google><button type="button" class="btn btn-google btn-block" data-auth="google">' + I.google + verb + ' with Google</button>' +
     '<p class="consent">By continuing with Google you confirm you\'re 16 or older and agree to the <a class="linkbtn" href="./terms.html" target="_blank" rel="noopener">terms</a>, <a class="linkbtn" href="./privacy.html" target="_blank" rel="noopener">privacy policy</a> and <a class="linkbtn" href="#/guidelines" data-guidelines>community guidelines</a>.</p>' +
-    '<div class="or"><span>or use email</span></div>';
+    '<div class="or"><span>or use email</span></div></div>';
 }
 
 function guestLink() {

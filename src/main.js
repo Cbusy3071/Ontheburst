@@ -1,7 +1,7 @@
 // Boot: auth state, onboarding, the shell and a tiny hash router.
 import './styles.css';
 import { setTheme, currentTheme } from './theme.js';
-import { sb, configured } from './supabase.js';
+import { sb, configured, detectGoogle } from './supabase.js';
 import { S, primary, rememberActing, recallActing } from './state.js';
 import * as api from './api.js';
 import { $, toast, errMsg, closeMenu, openModal } from './ui.js';
@@ -304,6 +304,7 @@ if (!configured) {
   showSetup();
 } else {
   loading();
+  detectGoogle();
   sb.auth.onAuthStateChange((event, session) => {
     // Supabase recommends not awaiting other Supabase calls inside this callback.
     setTimeout(() => handleAuth(event, session), 0);

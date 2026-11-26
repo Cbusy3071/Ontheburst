@@ -64,7 +64,7 @@ export function joinPrompt(reason) {
     title: 'Join On the Burst',
     body: '<div data-join-modal class="join">' + LOGO_SVG.replace('width="40" height="40"', 'width="48" height="48"') +
       '<p>' + esc(text) + '</p>' +
-      '<button class="btn btn-google btn-block" data-join="google">' + I.google + 'Continue with Google</button>' +
+      '<button class="btn btn-google btn-block" data-google data-join="google">' + I.google + 'Continue with Google</button>' +
       '<div class="join-row"><button class="btn btn-p" data-join="signup">Create account</button><button class="btn btn-g" data-join="signin">Sign in</button></div>' +
       '<p class="small muted">Free for players 16 and over, parents, clubs, scouts and coaches.</p></div>',
   });
@@ -113,7 +113,7 @@ document.addEventListener('submit', (e) => {
 export function guestCardHTML() {
   return '<div class="card guest-card">' + LOGO_SVG.replace('width="40" height="40"', 'width="44" height="44"') +
     '<b>You\'re browsing as a guest</b><p>Join free to post highlights, follow players and register for trials.</p>' +
-    '<button class="btn btn-google btn-block" data-join="google">' + I.google + 'Continue with Google</button>' +
+    '<button class="btn btn-google btn-block" data-google data-join="google">' + I.google + 'Continue with Google</button>' +
     '<button class="btn btn-p btn-block" data-join="signup">Create account</button>' +
     '<button class="btn btn-g btn-block" data-join="signin">Sign in</button></div>';
 }

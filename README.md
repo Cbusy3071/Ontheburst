@@ -40,6 +40,7 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
    2. Go to **APIs & Services > Credentials > Create credentials > OAuth client ID**, choose **Web application**, and add this under **Authorised redirect URIs**: `https://<your-project-ref>.supabase.co/auth/v1/callback` (Supabase shows the exact URL on its Google provider page).
    3. In Supabase, go to **Authentication > Sign In / Providers > Google**, switch it on, and paste the Client ID and Client Secret.
    4. Check the Site URL and Redirect URLs from step 3 include the address the app runs at. Google sign-in comes back to the same address.
+   5. The Google buttons stay hidden until Supabase reports the Google provider as on, then appear by themselves. No redeploy needed.
 6. Make yourself an admin. Sign up in the app first, then run this in the SQL editor:
    ```sql
    insert into public.admins (user_id)
