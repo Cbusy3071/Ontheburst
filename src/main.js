@@ -1,13 +1,14 @@
 // Boot: auth state, onboarding, the shell and a tiny hash router.
 import './styles.css';
 import { setTheme, currentTheme } from './theme.js';
-import { sb, configured } from './supabase.js';
+import { sb, configured, detectGoogle } from './supabase.js';
 import { S, primary, rememberActing, recallActing } from './state.js';
 import * as api from './api.js';
 import { $, toast, errMsg, closeMenu, openModal } from './ui.js';
-import { showSignIn, showNewPassword, showSetup } from './views/auth.js';
+import { showSignIn, showSignUp, showNewPassword, showSetup, signInWithGoogle, setBrowseHandler } from './views/auth.js';
+import { registerAuthScreens, rememberGuest, wasGuest, guestPageHTML } from './guest.js';
 import { showOnboarding, showLockout, showAddChild, showClaimPending } from './views/onboarding.js';
-import { renderLeft, renderRight, renderNav, renderPip, setActiveNav, meMenu } from './shell.js';
+import { renderLeft, renderRight, renderNav, renderPip, setActiveNav, meMenu, guestMenu } from './shell.js';
 import { openComposer } from './composer.js';
 import { closeViewer } from './viewer.js';
 import './actions.js';
@@ -22,6 +23,7 @@ let started = false, recovery = false, enteredUser = null, routeTok = 0, cleanup
 function refreshRails() {
   railsAt = Date.now();
   renderRight();
+  if (S.guest) { renderLeft(); return; }
   // Merge in changes others made to our profiles (club confirmed you, admin verified you).
   api.ownProfiles().then((fresh) => {
     fresh.forEach((f) => { const cur = S.profiles.find((x) => x.id === f.id); if (cur) Object.assign(cur, f); });
@@ -32,6 +34,14 @@ document.addEventListener('otb:posted', () => setTimeout(refreshRails, 300));
 const url = new URL(location.href);
 const urlError = url.searchParams.get('error_description') || new URLSearchParams(location.hash.replace(/^#/, '')).get('error_description');
 const hadCode = url.searchParams.has('code');
+// Set just before we hand over to Google, so the ?code= return isn't mistaken
+// for an email link.
+let cameFromOAuth = false;
+try { cameFromOAuth = localStorage.getItem('otb.oauth') === '1'; localStorage.removeItem('otb.oauth'); } catch (_) { /* ignore */ }
+
+// Shared links (a post or a profile) open straight into guest mode, so people
+// can see what they were sent without signing up first.
+const GUEST_DEEP_LINK = /^#\/(post|u)\//;
 
 function cleanUrl() {
   const h = location.hash;
@@ -52,19 +62,22 @@ async function handleAuth(event, session) {
     showNewPassword(() => { recovery = false; toast('Password updated'); enter(session, true); });
     return;
   }
-  if (event === 'SIGNED_OUT') { resetState(); showSignIn(); return; }
+  if (event === 'SIGNED_OUT') { resetState(); rememberGuest(false); showSignIn(); return; }
   if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') { if (session) { S.session = session; S.user = session.user; } return; }
   if (recovery) return;
   if (!session) {
     cleanUrl();
+    if (S.guest && started) return;   // already browsing as a guest
     if (urlError && !started) showSignIn(urlError.replace(/\+/g, ' '));
+    else if (hadCode && cameFromOAuth && !started) showSignIn('Google sign-in didn\'t finish. Try again, or use your email.');
     else if (hadCode && !started) showSignIn('Your email is confirmed. Sign in to continue.');
+    else if (GUEST_DEEP_LINK.test(location.hash) || wasGuest()) startGuest();
     else showSignIn();
     return;
   }
   let pendingReset = false;
   try { pendingReset = localStorage.getItem('otb.recovery') === '1'; } catch (_) { /* ignore */ }
-  if (pendingReset && hadCode && !started) {
+  if (pendingReset && hadCode && !cameFromOAuth && !started) {
     recovery = true;
     cleanUrl();
     showNewPassword(() => { recovery = false; enter(session, true); });
@@ -76,6 +89,7 @@ async function handleAuth(event, session) {
 function resetState() {
   started = false;
   enteredUser = null;
+  S.guest = false;
   if (cleanup) { try { cleanup(); } catch (_) { /* ignore */ } cleanup = null; }
   Object.assign(S, { session: null, user: null, holder: null, profiles: [], me: null, isAdmin: false, following: new Set(), blocked: new Set(), unread: 0, claim: null });
   S.posts.clear();
@@ -84,6 +98,7 @@ function resetState() {
 
 async function enter(session, force) {
   if (!force && enteredUser === session.user.id) { S.session = session; return; }
+  if (S.guest) leaveGuest();
   enteredUser = session.user.id;
   S.session = session;
   S.user = session.user;
@@ -112,6 +127,9 @@ async function enter(session, force) {
 }
 
 async function startApp(actingId) {
+  let returnTo = null;
+  try { returnTo = localStorage.getItem('otb.returnTo'); localStorage.removeItem('otb.returnTo'); } catch (_) { /* ignore */ }
+  if (returnTo && returnTo.startsWith('#/') && !location.hash.startsWith('#/u/') && !location.hash.startsWith('#/post/')) history.replaceState(null, '', location.pathname + returnTo);
   const want = actingId || recallActing();
   S.me = S.profiles.find((p) => p.id === want) || primary();
   rememberActing(S.me.id);
@@ -124,6 +142,37 @@ async function startApp(actingId) {
   refreshUnread();
   route();
 }
+
+/* ---------- guest mode ---------- */
+function startGuest() {
+  if (cleanup) { try { cleanup(); } catch (_) { /* ignore */ } cleanup = null; }
+  Object.assign(S, { session: null, user: null, holder: null, profiles: [], me: null, isAdmin: false, following: new Set(), blocked: new Set(), unread: 0, claim: null, guest: true });
+  if (S.filter === 'following' || S.filter === 'rising') S.filter = 'all';
+  S.posts.clear();
+  rememberGuest(true);
+  document.body.classList.remove('full');
+  document.body.classList.add('guest');
+  $('#full').innerHTML = '';
+  started = true;
+  renderNav();
+  refreshRails();
+  route();
+}
+function leaveGuest() {
+  S.guest = false;
+  started = false;
+  S.posts.clear();
+  rememberGuest(false);
+  document.body.classList.remove('guest');
+  if (cleanup) { try { cleanup(); } catch (_) { /* ignore */ } cleanup = null; }
+}
+// "Browse as a guest" on the sign-in screen, or "Keep browsing" if they came from guest mode.
+setBrowseHandler(() => {
+  if (S.guest && started) { document.body.classList.remove('full'); $('#full').innerHTML = ''; route(); return; }
+  startGuest();
+});
+const fromGuest = (fn) => () => { if (S.viewerOpen) closeViewer(false); fn(); };
+registerAuthScreens({ google: fromGuest(signInWithGoogle), signin: fromGuest(() => showSignIn()), signup: fromGuest(showSignUp) });
 
 export async function switchTo(id) {
   const p = S.profiles.find((x) => x.id === id);
@@ -139,7 +188,7 @@ export async function switchTo(id) {
 }
 
 async function refreshUnread() {
-  if (!started) return;
+  if (!started || S.guest) return;
   try { S.unread = await api.unreadCount(); renderPip(); } catch (_) { /* offline */ }
   // Pick up changes made by others (club confirmed you, admin verified you).
   try {
@@ -160,8 +209,11 @@ function parse() {
   return { parts: path.split('/').filter(Boolean).map(decodeURIComponent), query: new URLSearchParams(qs || '') };
 }
 
+// Pages a guest can open. Everything else asks them to sign in.
+const GUEST_ROUTES = new Set(['home', 'trials', 'events', 'u', 'post', 'search', 'guidelines']);
+
 async function route() {
-  if (!started || !S.me) return;
+  if (!started || (!S.me && !S.guest)) return;
   if (S.viewerOpen) closeViewer(true);
   closeMenu();
   if (cleanup) { try { cleanup(); } catch (_) { /* ignore */ } cleanup = null; }
@@ -170,11 +222,15 @@ async function route() {
   const { parts, query } = parse();
   const main = $('#main');
   const key = parts[0] || 'home';
-  const nav = key === 'u' && parts[1] === S.me.handle ? 'me' : ['home', 'trials', 'events', 'alerts'].includes(key) ? key : '';
+  const nav = key === 'u' && S.me && parts[1] === S.me.handle ? 'me' : ['home', 'trials', 'events', 'alerts'].includes(key) ? key : '';
   setActiveNav(nav);
   window.scrollTo(0, 0);
   if (Date.now() - railsAt > 15000) refreshRails();
   let res;
+  if (S.guest && (!GUEST_ROUTES.has(key) || (key === 'u' && !parts[1]))) {
+    main.innerHTML = guestPageHTML({ alerts: 'alerts', saved: 'save', me: 'me', u: 'me' }[key] || 'page');
+    return;
+  }
   try {
     switch (key) {
       case 'home': res = feedView(main); break;
@@ -212,6 +268,17 @@ document.addEventListener('click', (e) => {
     openModal({ title: 'Guidelines', body: '<div class="prose" style="padding:0">' + GUIDELINES.replace(/<h1>.*?<\/h1>/, '') + '</div>' });
     return;
   }
+  if ((t = e.target.closest('[data-menu="me"]')) && S.guest) {
+    e.preventDefault();
+    guestMenu(t, (act) => {
+      if (act === 'google') signInWithGoogle();
+      if (act === 'signin') showSignIn();
+      if (act === 'signup') showSignUp();
+      if (act === 'guidelines') location.hash = '#/guidelines';
+      if (act === 'theme') setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    });
+    return;
+  }
   if ((t = e.target.closest('[data-menu="me"]'))) {
     e.preventDefault();
     meMenu(t, (act, b) => {
@@ -237,6 +304,7 @@ if (!configured) {
   showSetup();
 } else {
   loading();
+  detectGoogle();
   sb.auth.onAuthStateChange((event, session) => {
     // Supabase recommends not awaiting other Supabase calls inside this callback.
     setTimeout(() => handleAuth(event, session), 0);

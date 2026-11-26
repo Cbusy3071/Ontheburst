@@ -5,6 +5,7 @@ import { mediaUrl, signPosts } from './media.js';
 import * as api from './api.js';
 import { managerLine } from './posts.js';
 import * as cm from './comments.js';
+import { allowClip } from './guest.js';
 
 const viewer = document.getElementById('viewer');
 const track = document.getElementById('track');
@@ -53,6 +54,8 @@ function ensureSrc(s) {
 
 function activate(s) {
   if (current === s) return;
+  // Guests get a set number of free highlights; past that we ask them to join.
+  if (!allowClip(s.dataset.post)) { s.querySelector('video').pause(); return; }
   if (current) { current.querySelector('video').pause(); current.querySelector('.stage').classList.remove('paused'); }
   current = s;
   ensureSrc(s);
@@ -119,6 +122,7 @@ export async function openViewer(list, startId, withComments) {
     if (p) clips.unshift(p);
   }
   if (!clips.length) return;
+  if (!allowClip(startId)) return;
   await signPosts(clips);
   S.viewerOpen = true;
   document.querySelectorAll('.media video').forEach((v) => v.pause());

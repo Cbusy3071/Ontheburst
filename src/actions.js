@@ -6,6 +6,7 @@ import { syncLike, syncSave, syncFollow, syncReg, removePostEverywhere } from '.
 import { removeMedia, mediaUrl } from './media.js';
 import * as cm from './comments.js';
 import { openViewer, closeViewer } from './viewer.js';
+import { joinPrompt, clipLimitReached, clipSeen } from './guest.js';
 
 export const postLink = (id) => location.origin + location.pathname + '#/post/' + id;
 export const profileLink = (h) => location.origin + location.pathname + '#/u/' + h;
@@ -18,6 +19,7 @@ async function share(url, title) {
 }
 
 async function toggleLike(id) {
+  if (S.guest) { joinPrompt('like'); return; }   // double-tap in the viewer comes through here
   const p = S.posts.get(id);
   if (!p) return;
   const was = p.liked;
@@ -143,7 +145,7 @@ function postMenu(btn, id) {
   if (!p) return;
   const mine = S.profiles.some((x) => x.id === p.author_id);
   let html = '<button data-act="copy">' + I.link + 'Copy link</button>';
-  if (mine) html += '<button data-act="edit">' + I.edit + 'Edit caption</button><hr><button data-act="delete" class="danger">' + I.trash + 'Delete post</button>';
+  if (S.guest) { /* guests can only copy the link */ } else if (mine) html += '<button data-act="edit">' + I.edit + 'Edit caption</button><hr><button data-act="delete" class="danger">' + I.trash + 'Delete post</button>';
   else {
     html += '<button data-act="report">' + I.flag + 'Report post</button>' +
       '<button data-act="block" class="danger">' + I.x.replace('width="18" height="18"', 'width="16" height="16"') + 'Block ' + esc(firstName(p.author.display_name)) + '</button>';
@@ -250,10 +252,12 @@ const feedIO = new IntersectionObserver((entries) => {
   entries.forEach((en) => {
     const v = en.target.querySelector('video');
     if (!v) return;
-    if (en.isIntersecting && en.intersectionRatio >= 0.6) v.play().catch(() => {});
+    if (en.isIntersecting && en.intersectionRatio >= 0.6) { if (guestMayAutoplay(v)) v.play().catch(() => {}); }
     else v.pause();
   });
 }, { threshold: [0, 0.6] });
+// Once a guest has used their free highlights, new clips stop autoplaying in the feed.
+const guestMayAutoplay = (v) => !S.guest || !clipLimitReached() || clipSeen(v.dataset.post);
 export function observeMedia(root) {
   $$('.media', root).forEach((m) => {
     if (m.dataset.obs) return;
@@ -273,7 +277,7 @@ export function resumeFeed() {
   $$('.media').forEach((m) => {
     const r = m.getBoundingClientRect(), vis = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0), v = m.querySelector('video');
     if (!v) return;
-    if (r.height && vis > r.height * 0.6) v.play().catch(() => {}); else v.pause();
+    if (r.height && vis > r.height * 0.6 && guestMayAutoplay(v)) v.play().catch(() => {}); else v.pause();
   });
 }
 document.addEventListener('otb:resume', resumeFeed);

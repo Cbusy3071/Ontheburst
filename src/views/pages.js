@@ -5,6 +5,7 @@ import { I, esc, av, emptyCard, spinner, errMsg, longDate, subText } from '../ui
 import { postHTML, followBtn } from '../posts.js';
 import { observeMedia } from '../actions.js';
 import * as cm from '../comments.js';
+import { guestPageHTML } from '../guest.js';
 
 function render(el, posts) {
   el.innerHTML = posts.map(postHTML).join('');
@@ -14,8 +15,9 @@ function render(el, posts) {
 /* ---------- trials & events ---------- */
 export async function listingView(main, kind) {
   const isTrial = kind === 'trial';
-  const canPost = S.me.kind === 'club' && S.me.verified || S.isAdmin;
-  const player = S.me.kind === 'player' || S.me.kind === 'rising_star';
+  const me = S.me || {};
+  const canPost = me.kind === 'club' && me.verified || S.isAdmin;
+  const player = me.kind === 'player' || me.kind === 'rising_star';
   main.innerHTML = '<div class="card"><div class="ph ph-row"><div><h1>' + (isTrial ? 'Trials' : 'Events') + '</h1><p>' +
     (isTrial ? 'Upcoming trials from verified clubs. Register interest and the club confirms your spot.' : 'Combines, camps and come-and-try days. Results from combines become verified stats.') + '</p></div>' +
     (canPost ? '<button class="btn btn-p btn-sm" data-compose="' + kind + '">' + I.plus + (isTrial ? 'Post a trial' : 'Post an event') + '</button>' : '') + '</div></div>' +
@@ -26,7 +28,7 @@ export async function listingView(main, kind) {
     const posts = await api.upcoming(kind, 50);
     if (!posts.length) {
       el.innerHTML = emptyCard(isTrial ? 'No trials listed yet' : 'No events yet', isTrial ? 'When verified clubs post trials, they show up here in date order.' : 'Events and combines will show up here when they\'re announced.',
-        S.me.kind === 'club' && !S.me.verified ? '<br><span class="small">Your club can post trials once it\'s verified.</span>' : '');
+        me.kind === 'club' && !me.verified ? '<br><span class="small">Your club can post trials once it\'s verified.</span>' : '');
     } else render(el, posts);
   } catch (e) { el.innerHTML = emptyCard('Couldn\'t load', errMsg(e)); }
   if (player) {
@@ -83,6 +85,7 @@ export async function postView(main, id) {
   const el = main.querySelector('#one');
   try {
     const p = await api.getPost(id);
+    if (!p && S.guest) { el.innerHTML = guestPageHTML('page'); return; }
     if (!p) { el.innerHTML = emptyCard('Post not found', 'It may have been deleted.', '<br><a class="btn btn-g" href="#/">Back to the feed</a>'); return; }
     render(el, [p]);
     cm.toggleInline(p.id, false);

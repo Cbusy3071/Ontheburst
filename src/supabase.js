@@ -17,3 +17,14 @@ export const sb = configured
 
 // Where Supabase email links (confirm, reset password) should land.
 export const redirectUrl = () => location.origin + location.pathname;
+
+// Google buttons stay hidden until the Supabase project has the Google
+// provider switched on, so the live site never shows a button that errors.
+// /auth/v1/settings is Supabase's public auth settings endpoint.
+export function detectGoogle() {
+  if (!configured) return;
+  fetch(SUPABASE_URL + '/auth/v1/settings', { headers: { apikey: SUPABASE_ANON_KEY } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => { if (j && j.external && j.external.google) document.body.classList.add('google-on'); })
+    .catch(() => { /* leave Google hidden */ });
+}

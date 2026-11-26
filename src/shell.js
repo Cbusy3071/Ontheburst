@@ -4,6 +4,7 @@ import { S, primary, isPlayerKind } from './state.js';
 import * as api from './api.js';
 import { I, esc, fmt, av, badges, subHTML, dateBox, openMenu, $, $$, KIND_LABEL } from './ui.js';
 import { currentTheme } from './theme.js';
+import { guestCardHTML } from './guest.js';
 
 export function strength(p, sum) {
   sum = sum || {};
@@ -29,6 +30,7 @@ export function strength(p, sum) {
 
 export async function renderLeft() {
   const el = $('#left'), p = S.me;
+  if (S.guest) { el.innerHTML = guestCardHTML(); return; }
   if (!p) { el.innerHTML = ''; return; }
   let sum = {};
   try { sum = await api.profileSummary(p.id); } catch (_) { /* show zeros */ }
@@ -55,7 +57,7 @@ const ic16 = (inner) => '<svg width="16" height="16" viewBox="0 0 24 24" fill="n
 
 export async function renderRight() {
   const el = $('#right');
-  if (!S.me) { el.innerHTML = ''; return; }
+  if (!S.me && !S.guest) { el.innerHTML = ''; return; }
   el.innerHTML = '<div class="card"><h3>Upcoming trials</h3><div id="rrTrials"><div class="spin"></div></div><a href="#/trials" class="rr-more">See all trials</a></div>' +
     '<div class="card"><h3>Players to watch</h3><div id="watch"><div class="spin"></div></div><a href="#/search" class="rr-more">Search players</a></div>' +
     '<div class="foot">On the Burst · <a href="#/guidelines">Guidelines</a> · <a href="./terms.html" target="_blank" rel="noopener">Terms</a> · <a href="./privacy.html" target="_blank" rel="noopener">Privacy</a><br>No direct messaging, by design</div>';
@@ -76,7 +78,7 @@ export function renderNav() {
   const p = S.me;
   $$('[data-me-av]').forEach((el) => {
     el.style.background = p ? p.color : '#334155';
-    el.innerHTML = p && p.avatar_url ? '<img alt="" src="' + esc(p.avatar_url) + '">' : esc(p ? p.display_name.split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase() : '');
+    el.innerHTML = p && p.avatar_url ? '<img alt="" src="' + esc(p.avatar_url) + '">' : p ? esc(p.display_name.split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase()) : (S.guest ? I.user : '');
   });
   const bar = $('#acting'), prim = primary();
   if (p && prim && p.id !== prim.id) {
@@ -90,6 +92,17 @@ export function renderPip() {
 }
 export function setActiveNav(key) {
   $$('[data-nav]').forEach((a) => a.classList.toggle('on', a.dataset.nav === key));
+}
+
+// The Me menu for someone browsing as a guest.
+export function guestMenu(anchor, onAction) {
+  const html = '<div class="row-flex" style="padding:8px 10px 10px"><div class="grow"><b style="font-size:14px">Browsing as a guest</b><div class="small muted">Join free to post and follow</div></div></div>' +
+    '<button data-act="google" data-google>' + I.google.replace('width="18" height="18"', 'width="16" height="16"') + 'Continue with Google</button>' +
+    '<button data-act="signup">' + I.plus + 'Create account</button>' +
+    '<button data-act="signin">' + I.user + 'Sign in</button>' +
+    '<hr><button data-act="guidelines">' + I.flag + 'Community guidelines</button>' +
+    '<button data-act="theme" role="switch" aria-checked="' + (currentTheme() === 'dark') + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></svg>Dark mode<span class="switch' + (currentTheme() === 'dark' ? ' on' : '') + '"></span></button>';
+  openMenu(anchor, html, onAction);
 }
 
 export function meMenu(anchor, onAction) {

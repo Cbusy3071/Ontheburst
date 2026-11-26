@@ -4,6 +4,9 @@ import { sb } from '../supabase.js';
 import * as api from '../api.js';
 import { I, esc, av, badges, subText, errMsg, LOGO_SVG, POSITIONS, GRADES, randomColor, suggestHandle, $, todayYMD } from '../ui.js';
 
+// Club search returns is_claimed (newer selects) or owner_id (older ones).
+const claimed = (c) => (c.is_claimed !== undefined ? !!c.is_claimed : !!c.owner_id);
+
 const full = () => document.getElementById('full');
 const KINDS = [
   ['player', 'Player', '16 and over. Post highlights, find trials, build your profile.', I.user],
@@ -62,7 +65,7 @@ function findClub(onDone) {
       const clubs = await api.searchClubs(q, { limit: 12 });
       if ($('#fcQ').value.trim() !== q) return;
       list.innerHTML = clubs.length ? clubs.map((c) => '<div class="dir-row">' + av(c, 38) + '<div class="grow"><div class="t1" style="font-weight:700;display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + esc(c.display_name) + badges(c) + '</div><div class="small muted">' + esc(subText(c)) + '</div></div>' +
-        (c.owner_id ? '<span class="small muted">Already run by the club</span>' : '<button class="btn btn-o btn-sm" data-claim="' + c.id + '">Claim</button>') + '</div>').join('')
+        (claimed(c) ? '<span class="small muted">Already run by the club</span>' : '<button class="btn btn-o btn-sm" data-claim="' + c.id + '">Claim</button>') + '</div>').join('')
         : '<p class="hint-t" style="padding:8px 2px">No clubs match. Check the spelling, or add your club below.</p>';
       list.querySelectorAll('[data-claim]').forEach((b) => { b.onclick = () => claimForm(clubs.find((c) => c.id === b.dataset.claim), onDone); });
     } catch (e) { list.innerHTML = '<div class="err">' + esc(errMsg(e)) + '</div>'; }
@@ -127,7 +130,7 @@ export function wireClubPicker(prefix, initial) {
     const c = match();
     hint.className = c ? 'good' : '';
     hint.textContent = c
-      ? (c.owner_id ? (c.verified ? 'Verified club. ' : '') + c.display_name + ' will be asked to confirm you.' : 'Linked to ' + c.display_name + '. They haven\'t joined yet, so they can confirm you once they do.')
+      ? (claimed(c) ? (c.verified ? 'Verified club. ' : '') + c.display_name + ' will be asked to confirm you.' : 'Linked to ' + c.display_name + '. They haven\'t joined yet, so they can confirm you once they do.')
       : (input.value.trim() ? 'Not on On the Burst yet. We\'ll show it as text until your club joins.' : 'Pick your club from the list so it can confirm you.');
   };
   input.addEventListener('input', () => {

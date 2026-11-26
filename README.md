@@ -6,7 +6,8 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
 
 ## What's in it
 
-- **Accounts:** email and password sign up, email confirmation, password reset, sign out and account deletion.
+- **Accounts:** sign in with Google, or email and password with email confirmation and password reset. Sign out and account deletion. Google users go through the same onboarding and date of birth check as everyone else.
+- **Guest mode:** visitors can browse without an account: the feed, highlights, trials, events, search and profiles of people 16 and over. Liking, commenting, following, saving, posting and registering open a "Join On the Burst" prompt instead. Rising Stars, their posts and comments, and team lists are hidden from guests by the database, not just the UI. Guests can open 20 highlights in the viewer before they're asked to join (`GUEST_CLIP_LIMIT` in `src/guest.js`). Shared post and profile links open straight into guest mode.
 - **Age check:** your date of birth is checked when you set up your account. Anyone under 16 is locked out for good (trying again with an older date doesn't work). DOBs are private.
 - **Profiles:** players, parents, clubs, scouts, coaches, agents and supporters. Players get a photo, position, grade, jersey number, club, area, bio and a profile strength meter.
 - **Rising Stars:** a parent creates a profile for a child under 16 and switches to act as them. Comments on a Rising Star's posts are held until the parent approves them.
@@ -22,7 +23,7 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
 - **Search:** people, clubs and #hashtags.
 - **Blocking:** block anyone from a post, comment or profile. Both sides stop seeing each other's posts and comments, follows between them are removed, and neither can like, comment or follow. Unblock from the profile or from Settings. App Store guideline 1.2 requires this.
 - **Safety and admin:** reports on posts and profiles. The admin page shows open reports, clubs waiting on verification and a form for verified combine stats.
-- **Privacy:** nothing is readable while signed out. Clips sit in a private bucket and are shown through signed URLs.
+- **Privacy:** signed-out visitors only see what guest mode allows (see `supabase/update_guest_mode.sql`): never Rising Stars, team lists, owner ids, emails or dates of birth. Clips sit in a private bucket and are shown through signed URLs, and guests can only sign URLs for clips on posts they can see.
 
 ## Set up (about 15 minutes)
 
@@ -34,11 +35,21 @@ It's a static web app (Vite, plain JavaScript) with Supabase handling accounts, 
    - **Site URL:** where the app will live, for example `https://ontheburst.com` or `https://cbusy3071.github.io/Ontheburst/`.
    - **Redirect URLs:** add the same URL plus `http://localhost:5173/` for local development.
 4. Go to **Authentication > Sign In / Providers > Email** and leave "Confirm email" on.
-5. Make yourself an admin. Sign up in the app first, then run this in the SQL editor:
+5. Turn on Google sign-in (optional, about 10 minutes):
+   1. In [Google Cloud Console](https://console.cloud.google.com/), create a project, then go to **APIs & Services > OAuth consent screen**. Choose **External**, set the app name to On the Burst, add your support email, the `ontheburst.com` domain, and links to `privacy.html` and `terms.html`. The scopes you need are `openid`, `email` and `profile`. Publish the app when you're ready for real users; in Testing mode only the test users you list can sign in.
+   2. Go to **APIs & Services > Credentials > Create credentials > OAuth client ID**, choose **Web application**, and add this under **Authorised redirect URIs**: `https://<your-project-ref>.supabase.co/auth/v1/callback` (Supabase shows the exact URL on its Google provider page).
+   3. In Supabase, go to **Authentication > Sign In / Providers > Google**, switch it on, and paste the Client ID and Client Secret.
+   4. Check the Site URL and Redirect URLs from step 3 include the address the app runs at. Google sign-in comes back to the same address.
+   5. The Google buttons stay hidden until Supabase reports the Google provider as on, then appear by themselves. No redeploy needed.
+6. Make yourself an admin. Sign up in the app first, then run this in the SQL editor:
    ```sql
    insert into public.admins (user_id)
    select id from auth.users where email = 'callumbushbrady@gmail.com';
    ```
+
+### Updating an existing project
+
+If your Supabase project was set up before guest mode, run `supabase/update_guest_mode.sql` in the SQL editor, then run `supabase/guest_mode_check.sql`. The check acts as a signed-out visitor, changes nothing, and prints one row per check. Every row should say `ok`.
 
 ### 2. Run it locally
 
@@ -96,7 +107,8 @@ The directory was built from the NRL clubs' junior league pages and Wikipedia in
 
 ```
 index.html             app shell (top bar, layout, viewer)
-src/main.js            boot, auth state, onboarding gate, hash router
+src/main.js            boot, auth state, onboarding gate, guest mode, hash router
+src/guest.js           guest mode: join prompts, guarded actions, the free-highlights limit
 src/api.js             every Supabase query in one place
 src/media.js           signed URLs, uploads with progress, poster frames, avatars
 src/posts.js           post cards (the prototype's renderers on real data)
@@ -108,10 +120,12 @@ src/shell.js           left profile card, right rail, nav, Me menu
 src/views/*.js         auth, onboarding, feed, profile, settings, alerts, admin, pages
 src/styles.css         the prototype's design system plus the app screens
 supabase/schema.sql    tables, RLS policies, triggers, RPCs, storage buckets
+supabase/update_guest_mode.sql   guest mode for an existing project (guest_mode_check.sql verifies it)
 ```
 
 ## How it was tested
 
 - The database rules were run against PostgreSQL 16 with Supabase's auth and storage stubbed. 106 scenarios covered the age lockout, parent approval, club confirmation, attempts to fake counters or post as someone else, storage folder rules and account deletion.
 - The app was driven end to end in headless Chromium against a local Supabase stand-in on the same database. The run covered sign up, onboarding, clip upload and playback, trials, Rising Stars, approvals, the viewer, search, admin, the under-16 lockout, mobile layout and account deletion.
-- **Not yet tested on hosted Supabase.** Test the sign-up email link and password reset once your project is live, because those are the parts a local stand-in can't cover.
+- Guest mode was tested against the same schema with every query run as the `anon` role: 11 database checks (`guest_mode_check.sql`) and 46 browser checks covering the feed, viewer, profiles, search, trials, every guarded action, the highlights limit, shared links and the Google redirect.
+- **Not yet tested on hosted Supabase.** The Google round trip (consent screen and coming back signed in) needs your real Google and Supabase settings, so test that once they're set up. Test the sign-up email link and password reset once your project is live, because those are the parts a local stand-in can't cover.

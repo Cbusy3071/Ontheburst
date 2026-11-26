@@ -14,7 +14,7 @@ function commentHTML(c, p) {
   return '<div class="cmt" data-cid="' + c.id + '">' + av(a, 32, true) + '<div class="bubble">' +
     '<div class="n"><a class="name-link" href="#/u/' + esc(a.handle) + '">' + esc(a.display_name) + '</a>' + (a.verified ? I.tick : '') +
       ((mine || ownsPost) ? '<button class="del" data-cdel="' + c.id + '" data-cpost="' + p.id + '">Delete</button>' : '') +
-      (!mine ? '<button class="del" data-creport="' + c.id + '"' + (ownsPost ? ' style="margin-left:8px"' : '') + '>Report</button>' : '') + '</div>' +
+      (!mine && !S.guest ? '<button class="del" data-creport="' + c.id + '"' + (ownsPost ? ' style="margin-left:8px"' : '') + '>Report</button>' : '') + '</div>' +
     '<div class="t">' + esc(commentTag(a)) + ' · ' + timeAgo(c.created_at) + '</div><p>' + esc(c.body) + '</p>' +
     (pending ? (ownsPost
       ? '<div class="pending">Waiting for your approval</div><div class="acts2"><button data-capprove="' + c.id + '" data-cpost="' + p.id + '">Approve</button><button class="rm" data-creject="' + c.id + '" data-cpost="' + p.id + '">Remove</button></div>'
@@ -24,8 +24,10 @@ function commentHTML(c, p) {
 
 export function commentsHTML(p, list) {
   if (!list) return '<div class="spin"></div>';
-  return modNote(p) + list.map((c) => commentHTML(c, p)).join('') +
-    '<div class="cmt-in">' + av(S.me, 32) + '<form data-cform="' + p.id + '"><input placeholder="Add a comment..." aria-label="Add a comment" maxlength="500" autocomplete="off"><button>Post</button></form></div>';
+  const box = S.guest
+    ? '<div class="cmt-in guest-cmt"><button class="btn btn-o btn-sm" data-join-ask="comment">Sign in to comment</button></div>'
+    : '<div class="cmt-in">' + av(S.me, 32) + '<form data-cform="' + p.id + '"><input placeholder="Add a comment..." aria-label="Add a comment" maxlength="500" autocomplete="off"><button>Post</button></form></div>';
+  return modNote(p) + (S.guest && !list.length ? '<p class="small muted" style="padding:4px 2px 8px">No comments yet.</p>' : '') + list.map((c) => commentHTML(c, p)).join('') + box;
 }
 
 let sheetPost = null;
