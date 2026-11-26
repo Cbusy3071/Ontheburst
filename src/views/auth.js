@@ -1,10 +1,11 @@
 // Sign in, sign up, password reset. Rendered full-screen over the app shell.
 import { sb, redirectUrl } from '../supabase.js';
-import { I, esc, errMsg, LOGO_SVG, $ } from '../ui.js';
+import { S } from '../state.js';
+import { I, esc, errMsg, LOGO_SVG, $, toast } from '../ui.js';
 
 const full = () => document.getElementById('full');
 
-function shell(card) {
+function shell(card, noGuest) {
   document.body.classList.add('full');
   full().innerHTML = '<div class="auth-wrap"><div class="auth">' +
     '<div class="auth-brand">' + LOGO_SVG.replace('width="40" height="40"', 'width="56" height="56"') +
@@ -14,9 +15,44 @@ function shell(card) {
       '<li><i>' + I.check + '</i>Find trials and register interest in a tap</li>' +
       '<li><i>' + I.star + '</i>Rising Star profiles for under 16s, run by parents</li>' +
       '<li><i>' + I.shield + '</i>No direct messaging, by design</li></ul></div>' +
-    '<div class="auth-card">' + card + '</div></div>' +
+    '<div class="auth-card">' + card + (noGuest ? '' : guestLink()) + '</div></div>' +
     '<div class="auth-foot">© ' + new Date().getFullYear() + ' On the Burst · <a href="#/guidelines" data-guidelines style="text-decoration:underline">Community guidelines</a> · <a href="./terms.html" style="text-decoration:underline">Terms</a> · <a href="./privacy.html" style="text-decoration:underline">Privacy</a></div></div>';
 }
+
+// Google sign-in. Works for new and existing accounts: Supabase links it to an
+// email account with the same verified address. New Google users still go
+// through onboarding, which checks their date of birth like everyone else.
+export async function signInWithGoogle() {
+  try {
+    localStorage.removeItem('otb.recovery');   // a stale reset flag would hijack the ?code= return
+    localStorage.setItem('otb.oauth', '1');
+    if (location.hash.startsWith('#/') && location.hash !== '#/') localStorage.setItem('otb.returnTo', location.hash);
+  } catch (_) { /* private mode */ }
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: redirectUrl(), queryParams: { prompt: 'select_account' } },
+  });
+  if (error) {
+    try { localStorage.removeItem('otb.oauth'); } catch (_) { /* ignore */ }
+    toast(errMsg(error));
+  }
+}
+
+function googleBlock(verb) {
+  return '<button type="button" class="btn btn-google btn-block" data-auth="google">' + I.google + verb + ' with Google</button>' +
+    '<p class="consent">By continuing with Google you confirm you\'re 16 or older and agree to the <a class="linkbtn" href="./terms.html" target="_blank" rel="noopener">terms</a>, <a class="linkbtn" href="./privacy.html" target="_blank" rel="noopener">privacy policy</a> and <a class="linkbtn" href="#/guidelines" data-guidelines>community guidelines</a>.</p>' +
+    '<div class="or"><span>or use email</span></div>';
+}
+
+function guestLink() {
+  return '<div class="auth-alt guest-alt">' + (S.guest
+    ? '<button class="linkbtn" data-auth="browse">Keep browsing as a guest</button>'
+    : 'Just looking? <button class="linkbtn" data-auth="browse">Browse as a guest</button>') + '</div>';
+}
+
+// main.js supplies what "browse" does (start or resume guest mode).
+let onBrowse = null;
+export function setBrowseHandler(fn) { onBrowse = fn; }
 
 function bindForm(onSubmit) {
   const f = $('#authForm'), err = $('#authErr'), btn = f.querySelector('button[type=submit]');
@@ -36,6 +72,7 @@ function bindForm(onSubmit) {
 export function showSignIn(notice) {
   shell('<h1>Sign in</h1><p class="sub2">Welcome back.</p>' +
     (notice ? '<div class="note" style="margin-bottom:14px">' + esc(notice) + '</div>' : '') +
+    googleBlock('Continue') +
     '<form class="form" id="authForm"><label class="field"><span>Email</span><input class="in" type="email" name="email" autocomplete="email" required></label>' +
     '<label class="field"><span>Password</span><input class="in" type="password" name="password" autocomplete="current-password" required></label>' +
     '<div class="err" id="authErr" hidden></div><button class="btn btn-p btn-block" type="submit">Sign in</button></form>' +
@@ -49,6 +86,7 @@ export function showSignIn(notice) {
 
 export function showSignUp() {
   shell('<h1>Join On the Burst</h1><p class="sub2">Players 16 and over, parents, clubs, scouts and coaches.</p>' +
+    googleBlock('Sign up') +
     '<form class="form" id="authForm"><label class="field"><span>Email</span><input class="in" type="email" name="email" autocomplete="email" required></label>' +
     '<label class="field"><span>Password</span><input class="in" type="password" name="password" autocomplete="new-password" minlength="8" required><small>At least 8 characters</small></label>' +
     '<label class="check"><input type="checkbox" name="agree" required><span>I\'m 16 or older and I agree to the <a class="linkbtn" href="./terms.html" target="_blank" rel="noopener">terms</a>, <a class="linkbtn" href="./privacy.html" target="_blank" rel="noopener">privacy policy</a> and <a class="linkbtn" href="#/guidelines" data-guidelines>community guidelines</a>. Under 16? A parent or guardian signs up and creates a Rising Star profile for you.</span></label>' +
@@ -88,7 +126,7 @@ export function showCheckEmail(email, why) {
 export function showNewPassword(onDone) {
   shell('<h1>New password</h1><p class="sub2">Choose a new password for your account.</p>' +
     '<form class="form" id="authForm"><label class="field"><span>New password</span><input class="in" type="password" name="password" autocomplete="new-password" minlength="8" required></label>' +
-    '<div class="err" id="authErr" hidden></div><button class="btn btn-p btn-block" type="submit">Save password</button></form>');
+    '<div class="err" id="authErr" hidden></div><button class="btn btn-p btn-block" type="submit">Save password</button></form>', true);
   bindForm(async (fd) => {
     const pw = fd.get('password');
     if (pw.length < 8) throw new Error('Use a password with at least 8 characters.');
@@ -103,7 +141,7 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-auth]');
   if (!t) return;
   e.preventDefault();
-  ({ signin: () => showSignIn(), signup: showSignUp, forgot: showForgot })[t.dataset.auth]();
+  ({ signin: () => showSignIn(), signup: showSignUp, forgot: showForgot, google: signInWithGoogle, browse: () => onBrowse && onBrowse() })[t.dataset.auth]();
 });
 
 export function showSetup() {

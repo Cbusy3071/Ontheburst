@@ -7,11 +7,17 @@ import { mountPostList } from './list.js';
 import { reportDialog, profileLink, blockFlow } from '../actions.js';
 import { CLUB_ROLES } from './onboarding.js';
 import { cardHTML } from '../card.js';
+import { guestPageHTML } from '../guest.js';
+
+// Unclaimed clubs (listed before they join) have no account behind them.
+// Newer selects return is_claimed instead of owner_id; accept either.
+export const isClaimed = (p) => (p.is_claimed !== undefined ? !!p.is_claimed : !!p.owner_id);
 
 export default async function profileView(main, handle, tab) {
   main.innerHTML = '<div class="card">' + spinner() + '</div>';
   let p;
   try { p = await api.profileByHandle(handle); } catch (_) { p = null; }
+  if (!p && S.guest) { main.innerHTML = guestPageHTML('page'); return; }
   if (!p) {
     main.innerHTML = emptyCard('Profile not found', 'That handle doesn\'t exist, or the profile was removed.', '<br><a class="btn btn-g" href="#/">Back to the feed</a>');
     return;
@@ -19,6 +25,8 @@ export default async function profileView(main, handle, tab) {
   const mine = S.profiles.some((x) => x.id === p.id);
   const blocked = S.blocked.has(p.id);
   if (!mine) api.recordProfileView(p.id).then(() => {});
+  // Guests don't get is_claimed; for them only clubs can be unclaimed, and the claim card is hidden anyway.
+  const claimed = S.guest ? p.kind !== 'club' || p.verified : isClaimed(p);
   const player = p.kind === 'player' || p.kind === 'rising_star';
   tab = tab === 'highlights' || tab === 'stats' ? tab : 'posts';
 
@@ -46,12 +54,12 @@ export default async function profileView(main, handle, tab) {
       managerLine(p) +
       '<div class="pp-meta">' + clubLine + (p.region ? '<span>' + I.pin + esc(p.region) + '</span>' : '') +
         (p.kind !== 'player' && p.kind !== 'rising_star' ? '<span>' + esc(KIND_LABEL[p.kind]) + '</span>' : '') +
-        (p.kind === 'club' && !p.owner_id ? '' : '<span>' + I.cal + 'Joined ' + new Date(p.created_at).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' }) + '</span>') + '</div>' +
+        (p.kind === 'club' && !claimed ? '' : '<span>' + I.cal + 'Joined ' + new Date(p.created_at).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' }) + '</span>') + '</div>' +
       (p.bio ? '<div class="pp-bio">' + esc(p.bio) + '</div>' : (mine ? '<div class="pp-bio muted">Add a bio in <a class="linkbtn" href="#/settings">Edit profile</a> so selectors know what you\'re about.</div>' : '')) +
       '<div class="pp-stats">' + statsRow.map((s, i) => '<div><b' + (i === 0 ? ' data-fcount' : '') + '>' + s[0] + '</b><span>' + s[1] + '</span></div>').join('') + '</div>' +
     '</div>' +
     (blocked ? '<div class="claim-card">' + I.shield + '<div><b>You\'ve blocked ' + esc(p.display_name) + '</b>You won\'t see each other\'s posts or comments.</div><button class="btn btn-g btn-sm" data-unblock>Unblock</button></div>' : '') +
-    (p.kind === 'club' && !p.owner_id ? '<div class="claim-card">' + I.shield + '<div><b>' + esc(p.display_name) + ' hasn\'t joined On the Burst yet</b>We set up this page so players can link their club. It isn\'t run by the club.</div>' +
+    (p.kind === 'club' && !claimed && !S.guest ? '<div class="claim-card">' + I.shield + '<div><b>' + esc(p.display_name) + ' hasn\'t joined On the Burst yet</b>We set up this page so players can link their club. It isn\'t run by the club.</div>' +
       (S.claim && S.claim.status === 'pending' ? '<span class="badge-c pend">Claim pending</span>' : '<button class="btn btn-t btn-sm" data-claimpage>Claim this page</button>') + '</div>' : '') +
     '<div class="tabs" role="tablist"><button data-tab="posts">Posts</button>' + (player || sum.highlights ? '<button data-tab="highlights">Highlights</button>' : '') + (player ? '<button data-tab="stats">Verified stats</button>' : '') + '</div>' +
   '</div>' + (player ? '<div class="card" id="pcardBox"></div>' : '') + '<div id="ptab"></div>';
@@ -75,8 +83,8 @@ export default async function profileView(main, handle, tab) {
   main.querySelector('[data-pmore]').onclick = (e) => {
     {
       let html = '<button data-act="copy">' + I.link + 'Copy profile link</button>';
-      if (!mine) html += '<button data-act="report">' + I.flag + 'Report profile</button>' +
-        (p.owner_id ? '<button data-act="block" class="danger">' + I.x.replace('width="18" height="18"', 'width="16" height="16"') + (blocked ? 'Unblock' : 'Block') + ' ' + esc(p.display_name.split(' ')[0]) + '</button>' : '');
+      if (!mine && !S.guest) html += '<button data-act="report">' + I.flag + 'Report profile</button>' +
+        (claimed ? '<button data-act="block" class="danger">' + I.x.replace('width="18" height="18"', 'width="16" height="16"') + (blocked ? 'Unblock' : 'Block') + ' ' + esc(p.display_name.split(' ')[0]) + '</button>' : '');
       if (S.isAdmin) {
         html += '<hr><button data-act="verify">' + I.admin + (p.verified ? 'Remove verified badge' : 'Verify profile') + '</button>';
         if (p.kind === 'club') html += '<button data-act="partner">' + I.check + (p.partnered ? 'Mark as not partnered' : 'Mark as partnered') + '</button>';

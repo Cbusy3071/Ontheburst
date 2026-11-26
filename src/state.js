@@ -6,6 +6,7 @@ export const S = {
   profiles: [],          // profiles this account owns (primary first)
   me: null,              // the profile currently acting (primary, or a managed Rising Star)
   isAdmin: false,
+  guest: false,          // browsing signed out (read-only, see guest.js)
   claim: null,           // latest club claim this account made
   following: new Set(),  // profile ids the acting profile follows
   blocked: new Set(),    // profile ids this account has blocked

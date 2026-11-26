@@ -10,6 +10,17 @@ const MANAGER = 'manager(display_name,handle)';
 export const POST_SEL = '*,author:profiles!posts_author_id_fkey(' + AUTHOR_COLS + ',' + MANAGER + ')';
 const COMMENT_SEL = 'id,post_id,author_id,body,status,created_at,author:profiles!comments_author_id_fkey(' + AUTHOR_COLS + ')';
 
+// Guests can read only the public profile columns (see update_guest_mode.sql),
+// and never Rising Stars, so their queries skip is_claimed and the manager()
+// and club() embeds, which need the whole profile row.
+const strip = (cols) => cols.split(',').filter((c) => c !== 'is_claimed').join(',');
+const G_PROFILE_COLS = strip(PROFILE_COLS);
+const G_AUTHOR_COLS = strip(AUTHOR_COLS);
+const G_POST_SEL = '*,author:profiles!posts_author_id_fkey(' + G_AUTHOR_COLS + ')';
+const G_COMMENT_SEL = 'id,post_id,author_id,body,status,created_at,author:profiles!comments_author_id_fkey(' + G_AUTHOR_COLS + ')';
+const postSel = () => (S.guest ? G_POST_SEL : POST_SEL);
+const authorCols = () => (S.guest ? G_AUTHOR_COLS : AUTHOR_COLS);
+
 function check({ data, error }) {
   if (error) throw error;
   return data;
@@ -49,28 +60,38 @@ export async function loadFollowing() {
 
 /* ---------- profiles ---------- */
 export async function profileByHandle(handle) {
+  if (S.guest) {
+    const p = check(await sb.from('profiles').select(G_PROFILE_COLS).eq('handle', String(handle).toLowerCase()).maybeSingle());
+    if (p && p.club_id) p.club = check(await sb.from('profiles').select('handle,verified').eq('id', p.club_id).maybeSingle());
+    return p;
+  }
   return check(await sb.from('profiles')
     .select(PROFILE_COLS + ',' + MANAGER + ',club(handle,verified)')
     .eq('handle', String(handle).toLowerCase()).maybeSingle());
 }
 export const profileSummary = (id) => sb.rpc('profile_summary', { p_profile: id }).then(check);
-export const recordProfileView = (id) => sb.rpc('record_profile_view', { p_profile: id });
+export const recordProfileView = (id) => (S.guest ? Promise.resolve({}) : sb.rpc('record_profile_view', { p_profile: id }));
 export const verifiedStats = async (id) => check(await sb.from('verified_stats').select('*').eq('profile_id', id).order('recorded_on', { ascending: false }));
 export async function playersToWatch() {
+  if (S.guest) {
+    return check(await sb.from('profiles').select(G_AUTHOR_COLS).eq('kind', 'player')
+      .order('follower_count', { ascending: false }).order('created_at', { ascending: false }).limit(3));
+  }
   return check(await sb.rpc('players_to_watch', { p_viewer: me(), p_limit: 3 }).select(AUTHOR_COLS));
 }
 const clean = (t) => String(t || '').replace(/[%_,()*\\:."']/g, ' ').trim().slice(0, 40);
 export async function searchProfiles(term, limit = 20) {
   const t = clean(term);
   if (!t) return [];
-  return check(await sb.from('profiles').select(AUTHOR_COLS + ',follower_count')
+  return check(await sb.from('profiles').select(authorCols() + ',follower_count')
     .or('display_name.ilike.*' + t + '*,handle.ilike.*' + t + '*,club_name.ilike.*' + t + '*')
     .order('follower_count', { ascending: false }).limit(limit));
 }
 const CLUB_COLS = 'id,handle,display_name,region,verified,partnered,club_tier,avatar_url,color,kind,follower_count,is_claimed';
+const G_CLUB_COLS = strip(CLUB_COLS);
 export async function searchClubs(term, { limit = 8, unclaimedOnly = false } = {}) {
   const t = clean(term);
-  let q = sb.from('profiles').select(CLUB_COLS).eq('kind', 'club');
+  let q = sb.from('profiles').select(S.guest ? G_CLUB_COLS : CLUB_COLS).eq('kind', 'club');
   if (t) q = q.ilike('display_name', '%' + t + '%');
   if (unclaimedOnly) q = q.is('owner_id', null);
   return check(await q.order('verified', { ascending: false }).order('display_name').limit(limit));
@@ -88,6 +109,10 @@ export const addClub = (args) => sb.rpc('admin_add_club', args).then(check);
 export async function hydrate(posts) {
   posts = (posts || []).filter((p) => p && p.author);
   if (!posts.length) return posts;
+  if (S.guest) {
+    await signPosts(posts);
+    return posts.map((p) => { p.liked = false; p.saved = false; p.reg = null; S.posts.set(p.id, p); return p; });
+  }
   const ids = posts.map((p) => p.id);
   const eventIds = posts.filter((p) => p.kind === 'trial' || p.kind === 'event').map((p) => p.id);
   const [likes, saves, regs] = await Promise.all([
@@ -111,30 +136,30 @@ export async function hydrate(posts) {
 // by offset; the other tabs are chronological and page by date.
 export const RANKED = new Set(['all', 'clip']);
 export async function feed(filter, before, offset) {
-  const rows = check(await sb.rpc('get_feed', { p_filter: filter, p_viewer: me(), p_before: RANKED.has(filter) ? null : (before || null), p_limit: 10, p_offset: RANKED.has(filter) ? (offset || 0) : 0 }).select(POST_SEL));
+  const rows = check(await sb.rpc('get_feed', { p_filter: filter, p_viewer: me(), p_before: RANKED.has(filter) ? null : (before || null), p_limit: 10, p_offset: RANKED.has(filter) ? (offset || 0) : 0 }).select(postSel()));
   return hydrate(rows);
 }
 export async function trending() {
-  return hydrate(check(await sb.rpc('trending_clips', { p_limit: 12 }).select(POST_SEL)));
+  return hydrate(check(await sb.rpc('trending_clips', { p_limit: 12 }).select(postSel())));
 }
 export async function upcoming(kind, limit = 20) {
-  return hydrate(check(await sb.rpc('upcoming_events', { p_kind: kind || null, p_limit: limit }).select(POST_SEL)));
+  return hydrate(check(await sb.rpc('upcoming_events', { p_kind: kind || null, p_limit: limit }).select(postSel())));
 }
 export async function upcomingLite(limit = 3) {
   return check(await sb.rpc('upcoming_events', { p_kind: null, p_limit: limit }).select('id,kind,event_date,data,author:profiles!posts_author_id_fkey(display_name)'));
 }
 export async function profilePosts(authorId, { before, clipsOnly, limit = 10 } = {}) {
-  let q = sb.from('posts').select(POST_SEL).eq('author_id', authorId);
+  let q = sb.from('posts').select(postSel()).eq('author_id', authorId);
   if (clipsOnly) q = q.eq('kind', 'clip');
   if (before) q = q.lt('created_at', before);
   return hydrate(check(await q.order('created_at', { ascending: false }).limit(limit)));
 }
 export async function getPost(id) {
-  const p = check(await sb.from('posts').select(POST_SEL).eq('id', id).maybeSingle());
+  const p = check(await sb.from('posts').select(postSel()).eq('id', id).maybeSingle());
   return p ? (await hydrate([p]))[0] : null;
 }
 export async function searchPosts(term) {
-  let q = sb.from('posts').select(POST_SEL);
+  let q = sb.from('posts').select(postSel());
   const t = String(term || '').trim();
   if (t.startsWith('#')) {
     const tag = t.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -159,8 +184,10 @@ export async function updateCaption(id, caption, tags) {
   return check(await sb.from('posts').update({ caption, tags }).eq('id', id).select('caption,tags,edited_at').single());
 }
 export const deletePost = async (id) => check(await sb.from('posts').delete().eq('id', id));
-export const recordView = (id) => sb.rpc('record_view', { p_post: id });
-export const recordCompletion = (id) => sb.rpc('record_completion', { p_post: id });
+// Guests don't count as views (the RPCs ignore signed-out calls anyway).
+const skip = () => Promise.resolve({ data: null, error: null });
+export const recordView = (id) => (S.guest ? skip() : sb.rpc('record_view', { p_post: id }));
+export const recordCompletion = (id) => (S.guest ? skip() : sb.rpc('record_completion', { p_post: id }));
 
 /* ---------- interactions ---------- */
 const ignoreDup = ({ error }) => { if (error && error.code !== '23505') throw error; };
@@ -181,7 +208,7 @@ export async function myRegistrations() {
 }
 
 /* ---------- comments ---------- */
-export const comments = async (postId) => check(await sb.from('comments').select(COMMENT_SEL).eq('post_id', postId).order('created_at').limit(200));
+export const comments = async (postId) => check(await sb.from('comments').select(S.guest ? G_COMMENT_SEL : COMMENT_SEL).eq('post_id', postId).order('created_at').limit(200));
 export const addComment = async (postId, body) => check(await sb.from('comments').insert({ post_id: postId, author_id: me(), body }).select(COMMENT_SEL).single());
 export const deleteComment = async (id) => check(await sb.from('comments').delete().eq('id', id));
 export const moderateComment = (id, approve) => sb.rpc('moderate_comment', { p_comment: id, p_approve: approve }).then(check);
@@ -211,6 +238,7 @@ export async function savePlayerCard(id, values) {
 
 /* ---------- blocking ---------- */
 export async function loadBlocks() {
+  if (S.guest) { S.blocked = new Set(); return; }
   const rows = check(await sb.from('blocks').select('blocked_id').limit(5000));
   S.blocked = new Set(rows.map((r) => r.blocked_id));
 }

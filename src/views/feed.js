@@ -5,6 +5,7 @@ import { I, av, esc, emptyCard } from '../ui.js';
 import { tileHTML } from '../posts.js';
 import { composeLabel } from '../composer.js';
 import { mountPostList } from './list.js';
+import { guestBannerHTML } from '../guest.js';
 
 const FILTERS = [['all', 'For you'], ['following', 'Following'], ['clip', 'Highlights'], ['trial', 'Trials & events'], ['rising', 'Rising Stars']];
 const EMPTY = {
@@ -28,10 +29,15 @@ function composerHTML() {
     third + '</div></div>';
 }
 
+// Guests have nobody to follow, and Rising Stars are hidden from them.
+const GUEST_FILTERS = FILTERS.filter((f) => f[0] !== 'following' && f[0] !== 'rising');
+
 export default function feedView(main) {
-  main.innerHTML = composerHTML() +
+  const guest = S.guest;
+  if (guest && !GUEST_FILTERS.some((f) => f[0] === S.filter)) S.filter = 'all';
+  main.innerHTML = (guest ? guestBannerHTML() : composerHTML()) +
     '<div id="strip"></div>' +
-    '<div class="fchips" id="fchips">' + FILTERS.map((f) => '<button class="fchip' + (S.filter === f[0] ? ' on' : '') + '" data-filter="' + f[0] + '">' + f[1] + '</button>').join('') + '</div>' +
+    '<div class="fchips" id="fchips">' + (guest ? GUEST_FILTERS : FILTERS).map((f) => '<button class="fchip' + (S.filter === f[0] ? ' on' : '') + '" data-filter="' + f[0] + '">' + f[1] + '</button>').join('') + '</div>' +
     '<div class="feed" id="posts" data-viewlist></div>';
 
   let list = null;
@@ -40,7 +46,7 @@ export default function feedView(main) {
     const f = S.filter;
     list = mountPostList(main.querySelector('#posts'), {
       load: (before, offset) => api.feed(f, before, offset),
-      empty: () => emptyCard(EMPTY[f][0], EMPTY[f][1], f === 'all' || f === 'clip' ? '<br><button class="btn btn-p" data-compose="clip">Post a highlight</button>' : ''),
+      empty: () => emptyCard(EMPTY[f][0], EMPTY[f][1], (f === 'all' || f === 'clip') && !guest ? '<br><button class="btn btn-p" data-compose="clip">Post a highlight</button>' : ''),
     });
   };
   mount();
@@ -57,7 +63,7 @@ export default function feedView(main) {
     const strip = main.querySelector('#strip');
     if (!strip) return;
     strip.innerHTML = '<div class="card strip-card"><div class="strip-h"><h2>Trending highlights</h2><span>Last two weeks</span></div><div class="strip" data-viewlist>' +
-      '<button class="tile add" data-compose="clip"><span class="plus">' + I.plus + '</span>Add your highlight</button>' +
+      (guest ? '' : '<button class="tile add" data-compose="clip"><span class="plus">' + I.plus + '</span>Add your highlight</button>') +
       clips.map(tileHTML).join('') + '</div></div>';
   }).catch(() => {});
 
